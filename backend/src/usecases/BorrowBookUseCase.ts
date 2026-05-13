@@ -2,7 +2,7 @@ import { IUseCase } from '../domain/interfaces/IUseCase';
 import { IBookRepository } from '../domain/interfaces/IBookRepository';
 import { IMemberRepository } from '../domain/interfaces/IMemberRepository';
 import { IBorrowRepository } from '../domain/interfaces/IBorrowRepository';
-import { IBorrowingStrategy } from '../domain/interfaces/IBorrowingStrategy';
+import { IBorrowingStrategyResolver } from '../domain/interfaces/IBorrowingStrategyResolver';
 import { BorrowRecord } from '../domain/entities/BorrowRecord';
 
 export interface BorrowBookInput {
@@ -15,7 +15,7 @@ export class BorrowBookUseCase implements IUseCase<BorrowBookInput, Promise<Borr
     private bookRepository: IBookRepository,
     private memberRepository: IMemberRepository,
     private borrowRepository: IBorrowRepository,
-    private borrowingStrategy: IBorrowingStrategy
+    private strategyResolver: IBorrowingStrategyResolver
   ) {}
 
   async execute(input: BorrowBookInput): Promise<BorrowRecord | null> {
@@ -26,7 +26,9 @@ export class BorrowBookUseCase implements IUseCase<BorrowBookInput, Promise<Borr
       return null;
     }
 
-    if (!this.borrowingStrategy.canBorrow(member, book)) {
+    const strategy = this.strategyResolver.resolve(member);
+
+    if (!strategy.canBorrow(member, book)) {
       return null;
     }
 
@@ -35,7 +37,7 @@ export class BorrowBookUseCase implements IUseCase<BorrowBookInput, Promise<Borr
 
     const borrowDate = new Date();
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + this.borrowingStrategy.getBorrowDuration());
+    dueDate.setDate(dueDate.getDate() + strategy.getBorrowDuration());
 
     const record = new BorrowRecord(
       crypto.randomUUID(),

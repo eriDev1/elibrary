@@ -6,7 +6,7 @@ import { api } from '#/lib/api'
 import { getRole, getSession } from '#/lib/auth'
 import { useSessionQuery } from '#/lib/sessionQuery'
 import { queryKeys } from '#/lib/queryKeys'
-import type { Book, BorrowRecord } from '#/lib/types'
+import type { Book, BorrowRecord, MemberActiveBorrow } from '#/lib/types'
 
 export const Route = createFileRoute('/_authenticated/borrow')({
   beforeLoad: async () => {
@@ -30,35 +30,47 @@ function BorrowPage() {
     queryFn: () => api.get<Book[]>('/books'),
   })
 
-  function invalidateBooks() {
+  const myBorrowsQuery = useQuery({
+    queryKey: memberId ? queryKeys.myBorrows(memberId) : ['myBorrows', 'pending'],
+    queryFn: () => api.get<MemberActiveBorrow[]>('/borrow/my'),
+    enabled: memberId !== null,
+  })
+
+  function invalidateBorrowData() {
     queryClient.invalidateQueries({ queryKey: ['books'] })
+    if (memberId) queryClient.invalidateQueries({ queryKey: queryKeys.myBorrows(memberId) })
   }
 
   const borrowMutation = useMutation({
     mutationFn: (bookId: string) =>
       api.post<BorrowRecord>('/borrow', { bookId, memberId }),
     onSuccess: (record) => {
-      invalidateBooks()
-      setSuccess(`Borrowed. Due: ${new Date(record.due_date).toLocaleDateString()}`)
+      invalidateBorrowData()
+      setSuccess(
+        `Borrowed on ${new Date(record.borrow_date).toLocaleDateString()}. Return by ${new Date(record.due_date).toLocaleDateString()}.`
+      )
     },
   })
 
   const returnMutation = useMutation({
     mutationFn: (bookId: string) => api.post('/return', { bookId }),
     onSuccess: () => {
-      invalidateBooks()
+      invalidateBorrowData()
       setSuccess('Book returned successfully.')
     },
   })
 
   const books = booksQuery.data ?? []
+  const myLoans = myBorrowsQuery.data ?? []
+
   const error =
     booksQuery.error?.message ??
+    myBorrowsQuery.error?.message ??
     borrowMutation.error?.message ??
     returnMutation.error?.message ??
     null
 
-  if (booksQuery.isPending || !memberId) {
+  if (booksQuery.isPending || myBorrowsQuery.isPending || !memberId) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-400 text-sm">
         Loading…
@@ -67,11 +79,13 @@ function BorrowPage() {
   }
 
   const available = books.filter((b) => b.is_available)
-  const borrowed = books.filter((b) => !b.is_available)
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-bold text-gray-900">Borrow &amp; Return</h1>
+      <p className="text-sm text-gray-500 -mt-4">
+        Loan length follows your member type (strategy): standard 14 days, student 21, premium 30.
+      </p>
 
       {error && (
         <div className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">{error}</div>
@@ -101,26 +115,71 @@ function BorrowPage() {
         )}
       />
 
-      <Section
-        icon={<ArrowUpFromLine className="text-amber-500" size={18} />}
-        title={`Borrowed books (${borrowed.length})`}
-        emptyMessage="No borrowed books"
-        rows={borrowed}
-        action={(book) => (
-          <button
-            onClick={() => {
-              setSuccess(null)
-              returnMutation.mutate(book.id)
-            }}
-            disabled={returnMutation.isPending && returnMutation.variables === book.id}
-            className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
-          >
-            {returnMutation.isPending && returnMutation.variables === book.id
-              ? 'Returning…'
-              : 'Return'}
-          </button>
-        )}
-      />
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <ArrowUpFromLine className="text-amber-500" size={18} />
+          <h2 className="text-base font-semibold text-gray-800">
+            My current loans ({myLoans.length})
+          </h2>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="px-4 py-3 text-left">Title</th>
+                <th className="px-4 py-3 text-left">Borrowed</th>
+                <th className="px-4 py-3 text-left">Return by</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {myLoans.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                    You have no active loans
+                  </td>
+                </tr>
+              ) : (
+                myLoans.map((loan) => (
+                  <tr key={loan.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{loan.book_title}</div>
+                      <div className="text-xs text-gray-500">{loan.book_author}</div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {new Date(loan.borrow_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 font-medium">
+                      {new Date(loan.due_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <DueBadge dueDate={loan.due_date} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => {
+                          setSuccess(null)
+                          returnMutation.mutate(loan.book_id)
+                        }}
+                        disabled={
+                          returnMutation.isPending &&
+                          returnMutation.variables === loan.book_id
+                        }
+                        className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+                      >
+                        {returnMutation.isPending && returnMutation.variables === loan.book_id
+                          ? 'Returning…'
+                          : 'Return'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   )
 }
@@ -171,5 +230,23 @@ function Section({ icon, title, emptyMessage, rows, action }: SectionProps) {
         </table>
       </div>
     </section>
+  )
+}
+
+function DueBadge({ dueDate }: { dueDate: string }) {
+  const due = new Date(dueDate).getTime()
+  const now = Date.now()
+  if (due < now) {
+    return (
+      <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        Overdue
+      </span>
+    )
+  }
+  const days = Math.ceil((due - now) / (24 * 60 * 60 * 1000))
+  return (
+    <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+      {days} day{days === 1 ? '' : 's'} left
+    </span>
   )
 }

@@ -19,6 +19,8 @@ import { DeleteMemberUseCase } from './usecases/DeleteMemberUseCase';
 import { BorrowBookUseCase } from './usecases/BorrowBookUseCase';
 import { ReturnBookUseCase } from './usecases/ReturnBookUseCase';
 import { GetAllBorrowsUseCase } from './usecases/GetAllBorrowsUseCase';
+import { GetMyActiveBorrowsUseCase } from './usecases/GetMyActiveBorrowsUseCase';
+import { GetMemberLoanPeriodUseCase } from './usecases/GetMemberLoanPeriodUseCase';
 
 import { BookController } from './controllers/BookController';
 import { MemberController } from './controllers/MemberController';
@@ -26,6 +28,9 @@ import { BorrowController } from './controllers/BorrowController';
 import { AuthController } from './controllers/AuthController';
 
 import { StandardBorrowingStrategy } from './services/StandardBorrowingStrategy';
+import { StudentBorrowingStrategy } from './services/StudentBorrowingStrategy';
+import { PremiumBorrowingStrategy } from './services/PremiumBorrowingStrategy';
+import { MemberTypeBorrowingStrategyResolver } from './services/MemberTypeBorrowingStrategyResolver';
 
 import { buildAuthMiddleware } from './middleware/authMiddleware';
 import { requireRole } from './middleware/requireRole';
@@ -39,7 +44,11 @@ const memberRepository = new SupabaseMemberRepository(supabase);
 const borrowRepository = new SupabaseBorrowRepository(supabase);
 const authService = new SupabaseAuthService(supabase, memberRepository);
 
-const borrowingStrategy = new StandardBorrowingStrategy();
+const borrowingStrategyResolver = new MemberTypeBorrowingStrategyResolver(
+  new StandardBorrowingStrategy(),
+  new StudentBorrowingStrategy(),
+  new PremiumBorrowingStrategy()
+);
 
 const createBookUseCase = new CreateBookUseCase(bookRepository);
 const getAllBooksUseCase = new GetAllBooksUseCase(bookRepository);
@@ -55,10 +64,15 @@ const borrowBookUseCase = new BorrowBookUseCase(
   bookRepository,
   memberRepository,
   borrowRepository,
-  borrowingStrategy
+  borrowingStrategyResolver
 );
 const returnBookUseCase = new ReturnBookUseCase(bookRepository, borrowRepository);
 const getAllBorrowsUseCase = new GetAllBorrowsUseCase(borrowRepository);
+const getMyActiveBorrowsUseCase = new GetMyActiveBorrowsUseCase(borrowRepository);
+const getMemberLoanPeriodUseCase = new GetMemberLoanPeriodUseCase(
+  memberRepository,
+  borrowingStrategyResolver
+);
 
 const bookController = new BookController(
   createBookUseCase,
@@ -75,7 +89,9 @@ const memberController = new MemberController(
 const borrowController = new BorrowController(
   borrowBookUseCase,
   returnBookUseCase,
-  getAllBorrowsUseCase
+  getAllBorrowsUseCase,
+  getMyActiveBorrowsUseCase,
+  getMemberLoanPeriodUseCase
 );
 const authController = new AuthController(authService);
 
@@ -105,6 +121,10 @@ const start = async () => {
   fastify.delete('/members/:id', staffOnly, (req, rep) => memberController.delete(req, rep));
 
   fastify.post('/borrow', memberOnly, (req, rep) => borrowController.borrow(req, rep));
+  fastify.get('/borrow/my', memberOnly, (req, rep) => borrowController.myActive(req, rep));
+  fastify.get('/borrow/period', memberOnly, (req, rep) =>
+    borrowController.memberLoanPeriod(req, rep)
+  );
   fastify.post('/return', memberOnly, (req, rep) => borrowController.return(req, rep));
   fastify.get('/borrows', staffOnly, (req, rep) => borrowController.report(req, rep));
 

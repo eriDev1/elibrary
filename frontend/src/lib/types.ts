@@ -41,3 +41,13 @@ export interface BorrowRecord {
   due_date: string
   return_date: string | null
 }
+
+export interface MemberActiveBorrow {
+  id: string
+  book_id: string
+  book_title: string
+  book_author: string
+  book_isbn: string
+  borrow_date: string
+  due_date: string
+}

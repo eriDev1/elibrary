@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import {
   BorrowReportItem,
   IBorrowRepository,
+  MemberActiveBorrow,
 } from '../../domain/interfaces/IBorrowRepository';
 import { BorrowRecord } from '../../domain/entities/BorrowRecord';
 
@@ -17,6 +18,24 @@ interface BorrowRow {
 interface BorrowReportRow extends BorrowRow {
   books: { title: string; author: string } | null;
   members: { name: string; email: string; member_type: string } | null;
+}
+
+interface MemberBorrowRow {
+  id: string;
+  book_id: string;
+  borrow_date: string;
+  due_date: string;
+  books:
+    | { title: string; author: string; isbn: string }
+    | { title: string; author: string; isbn: string }[]
+    | null;
+}
+
+function singleBook(
+  books: MemberBorrowRow['books']
+): { title: string; author: string; isbn: string } | null {
+  if (!books) return null;
+  return Array.isArray(books) ? books[0] ?? null : books;
 }
 
 function toBorrowRecord(row: BorrowRow): BorrowRecord {
@@ -91,5 +110,28 @@ export class SupabaseBorrowRepository implements IBorrowRepository {
       due_date: row.due_date,
       return_date: row.return_date,
     }));
+  }
+
+  async findActiveBorrowsForMember(memberId: string): Promise<MemberActiveBorrow[]> {
+    const { data, error } = await this.supabase
+      .from('borrow_records')
+      .select('id, book_id, borrow_date, due_date, books(title, author, isbn)')
+      .eq('member_id', memberId)
+      .is('return_date', null)
+      .order('due_date', { ascending: true });
+    if (error) throw new Error(error.message);
+
+    return (data as MemberBorrowRow[]).map((row) => {
+      const b = singleBook(row.books);
+      return {
+        id: row.id,
+        book_id: row.book_id,
+        book_title: b?.title ?? '(deleted)',
+        book_author: b?.author ?? '',
+        book_isbn: b?.isbn ?? '',
+        borrow_date: row.borrow_date,
+        due_date: row.due_date,
+      };
+    });
   }
 }
