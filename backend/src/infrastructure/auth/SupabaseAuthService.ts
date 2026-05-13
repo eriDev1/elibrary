@@ -1,7 +1,15 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { IAuthService, AuthenticatedUser } from '../../domain/interfaces/IAuthService';
 import { IMemberRepository } from '../../domain/interfaces/IMemberRepository';
-import { Member } from '../../domain/entities/Member';
+import { Member, MemberType } from '../../domain/entities/Member';
+
+const ALLOWED_TYPES: readonly MemberType[] = ['standard', 'student', 'premium'] as const;
+
+function normalizeMemberType(value: string): MemberType {
+  return (ALLOWED_TYPES as readonly string[]).includes(value)
+    ? (value as MemberType)
+    : 'standard';
+}
 
 export class SupabaseAuthService implements IAuthService {
   constructor(
@@ -39,7 +47,7 @@ export class SupabaseAuthService implements IAuthService {
       throw new Error(error?.message ?? 'Failed to create user');
     }
 
-    const member = new Member(data.user.id, name, email, memberType);
+    const member = new Member(data.user.id, name, email, normalizeMemberType(memberType));
     await this.memberRepository.create(member);
 
     return {

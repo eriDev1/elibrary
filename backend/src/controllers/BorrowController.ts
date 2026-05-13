@@ -1,11 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BorrowBookUseCase } from '../usecases/BorrowBookUseCase';
 import { ReturnBookUseCase } from '../usecases/ReturnBookUseCase';
+import { GetAllBorrowsUseCase } from '../usecases/GetAllBorrowsUseCase';
 
 export class BorrowController {
   constructor(
     private borrowBookUseCase: BorrowBookUseCase,
-    private returnBookUseCase: ReturnBookUseCase
+    private returnBookUseCase: ReturnBookUseCase,
+    private getAllBorrowsUseCase: GetAllBorrowsUseCase
   ) {}
 
   async borrow(request: FastifyRequest, reply: FastifyReply) {
@@ -30,5 +32,10 @@ export class BorrowController {
     }
 
     reply.send({ success: true });
+  }
+
+  async report(_request: FastifyRequest, reply: FastifyReply) {
+    const items = await this.getAllBorrowsUseCase.execute();
+    reply.send(items);
   }
 }

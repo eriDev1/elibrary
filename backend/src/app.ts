@@ -10,10 +10,15 @@ import { SupabaseAuthService } from './infrastructure/auth/SupabaseAuthService';
 
 import { CreateBookUseCase } from './usecases/CreateBookUseCase';
 import { GetAllBooksUseCase } from './usecases/GetAllBooksUseCase';
+import { UpdateBookUseCase } from './usecases/UpdateBookUseCase';
+import { DeleteBookUseCase } from './usecases/DeleteBookUseCase';
 import { CreateMemberUseCase } from './usecases/CreateMemberUseCase';
 import { GetAllMembersUseCase } from './usecases/GetAllMembersUseCase';
+import { UpdateMemberUseCase } from './usecases/UpdateMemberUseCase';
+import { DeleteMemberUseCase } from './usecases/DeleteMemberUseCase';
 import { BorrowBookUseCase } from './usecases/BorrowBookUseCase';
 import { ReturnBookUseCase } from './usecases/ReturnBookUseCase';
+import { GetAllBorrowsUseCase } from './usecases/GetAllBorrowsUseCase';
 
 import { BookController } from './controllers/BookController';
 import { MemberController } from './controllers/MemberController';
@@ -38,8 +43,14 @@ const borrowingStrategy = new StandardBorrowingStrategy();
 
 const createBookUseCase = new CreateBookUseCase(bookRepository);
 const getAllBooksUseCase = new GetAllBooksUseCase(bookRepository);
+const updateBookUseCase = new UpdateBookUseCase(bookRepository);
+const deleteBookUseCase = new DeleteBookUseCase(bookRepository);
+
 const createMemberUseCase = new CreateMemberUseCase(memberRepository);
 const getAllMembersUseCase = new GetAllMembersUseCase(memberRepository);
+const updateMemberUseCase = new UpdateMemberUseCase(memberRepository);
+const deleteMemberUseCase = new DeleteMemberUseCase(memberRepository);
+
 const borrowBookUseCase = new BorrowBookUseCase(
   bookRepository,
   memberRepository,
@@ -47,13 +58,31 @@ const borrowBookUseCase = new BorrowBookUseCase(
   borrowingStrategy
 );
 const returnBookUseCase = new ReturnBookUseCase(bookRepository, borrowRepository);
+const getAllBorrowsUseCase = new GetAllBorrowsUseCase(borrowRepository);
 
-const bookController = new BookController(createBookUseCase, getAllBooksUseCase);
-const memberController = new MemberController(createMemberUseCase, getAllMembersUseCase);
-const borrowController = new BorrowController(borrowBookUseCase, returnBookUseCase);
+const bookController = new BookController(
+  createBookUseCase,
+  getAllBooksUseCase,
+  updateBookUseCase,
+  deleteBookUseCase
+);
+const memberController = new MemberController(
+  createMemberUseCase,
+  getAllMembersUseCase,
+  updateMemberUseCase,
+  deleteMemberUseCase
+);
+const borrowController = new BorrowController(
+  borrowBookUseCase,
+  returnBookUseCase,
+  getAllBorrowsUseCase
+);
 const authController = new AuthController(authService);
 
 const authMiddleware = buildAuthMiddleware(authService);
+const staffOnly = { preHandler: [authMiddleware, requireRole('staff')] };
+const memberOnly = { preHandler: [authMiddleware, requireRole('member')] };
+const authOnly = { preHandler: [authMiddleware] };
 
 const start = async () => {
   await fastify.register(cors, {
@@ -65,36 +94,19 @@ const start = async () => {
 
   fastify.post('/auth/signup', (req, rep) => authController.signup(req, rep));
 
-  fastify.get('/books', { preHandler: [authMiddleware] }, (req, rep) =>
-    bookController.getAll(req, rep)
-  );
-  fastify.post(
-    '/books',
-    { preHandler: [authMiddleware, requireRole('staff')] },
-    (req, rep) => bookController.create(req, rep)
-  );
+  fastify.get('/books', authOnly, (req, rep) => bookController.getAll(req, rep));
+  fastify.post('/books', staffOnly, (req, rep) => bookController.create(req, rep));
+  fastify.put('/books/:id', staffOnly, (req, rep) => bookController.update(req, rep));
+  fastify.delete('/books/:id', staffOnly, (req, rep) => bookController.delete(req, rep));
 
-  fastify.get(
-    '/members',
-    { preHandler: [authMiddleware, requireRole('staff')] },
-    (req, rep) => memberController.getAll(req, rep)
-  );
-  fastify.post(
-    '/members',
-    { preHandler: [authMiddleware, requireRole('staff')] },
-    (req, rep) => memberController.create(req, rep)
-  );
+  fastify.get('/members', staffOnly, (req, rep) => memberController.getAll(req, rep));
+  fastify.post('/members', staffOnly, (req, rep) => memberController.create(req, rep));
+  fastify.put('/members/:id', staffOnly, (req, rep) => memberController.update(req, rep));
+  fastify.delete('/members/:id', staffOnly, (req, rep) => memberController.delete(req, rep));
 
-  fastify.post(
-    '/borrow',
-    { preHandler: [authMiddleware, requireRole('member')] },
-    (req, rep) => borrowController.borrow(req, rep)
-  );
-  fastify.post(
-    '/return',
-    { preHandler: [authMiddleware, requireRole('member')] },
-    (req, rep) => borrowController.return(req, rep)
-  );
+  fastify.post('/borrow', memberOnly, (req, rep) => borrowController.borrow(req, rep));
+  fastify.post('/return', memberOnly, (req, rep) => borrowController.return(req, rep));
+  fastify.get('/borrows', staffOnly, (req, rep) => borrowController.report(req, rep));
 
   const port = Number(process.env.PORT ?? 4000);
   try {

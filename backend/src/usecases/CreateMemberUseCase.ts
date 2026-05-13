@@ -1,12 +1,12 @@
 import { IUseCase } from '../domain/interfaces/IUseCase';
 import { IMemberRepository } from '../domain/interfaces/IMemberRepository';
-import { Member } from '../domain/entities/Member';
+import { Member, MemberType } from '../domain/entities/Member';
 
 export interface CreateMemberInput {
   id?: string;
   name: string;
   email: string;
-  memberType: string;
+  memberType: MemberType;
 }
 
 export class CreateMemberUseCase implements IUseCase<CreateMemberInput, Promise<Member>> {

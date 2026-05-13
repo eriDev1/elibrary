@@ -1,43 +1,46 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { useState } from 'react'
-import { signIn } from '#/lib/auth'
+import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { useForm } from 'react-hook-form'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '#/lib/api'
+import { getSession, signIn } from '#/lib/auth'
+import { queryKeys } from '#/lib/queryKeys'
+import type { MemberType } from '#/lib/types'
+
+interface SignupForm {
+  name: string
+  email: string
+  password: string
+  memberType: MemberType
+}
+
+const MEMBER_TYPES: MemberType[] = ['standard', 'student', 'premium']
 
 export const Route = createFileRoute('/signup')({
+  beforeLoad: async () => {
+    if (typeof window === 'undefined') return
+    const session = await getSession()
+    if (session) throw redirect({ to: '/books' })
+  },
   component: SignupPage,
 })
 
-const MEMBER_TYPES = ['standard', 'student', 'premium'] as const
-
 function SignupPage() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    memberType: 'standard',
+  const queryClient = useQueryClient()
+  const { register, handleSubmit, formState } = useForm<SignupForm>({
+    defaultValues: { name: '', email: '', password: '', memberType: 'standard' },
   })
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-    try {
-      await api.post('/auth/signup', form)
-      await signIn(form.email, form.password)
+  const signupMutation = useMutation({
+    mutationFn: async (values: SignupForm) => {
+      await api.post('/auth/signup', values)
+      await signIn(values.email, values.password)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session })
       navigate({ to: '/books' })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed')
-    } finally {
-      setLoading(false)
-    }
-  }
+    },
+  })
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -45,58 +48,39 @@ function SignupPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Create account</h1>
         <p className="text-sm text-gray-500 mb-6">Join eLibrary as a member</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full name
-            </label>
+        <form
+          onSubmit={handleSubmit((values) => signupMutation.mutate(values))}
+          className="space-y-4"
+        >
+          <Field label="Full name" error={formState.errors.name?.message}>
             <input
-              name="name"
-              type="text"
-              value={form.name}
-              onChange={handleChange}
-              required
+              {...register('name', { required: 'Name is required' })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+          <Field label="Email" error={formState.errors.email?.message}>
             <input
-              name="email"
               type="email"
-              value={form.email}
-              onChange={handleChange}
-              required
+              {...register('email', { required: 'Email is required' })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+          <Field label="Password" error={formState.errors.password?.message}>
             <input
-              name="password"
               type="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              minLength={6}
+              {...register('password', {
+                required: 'Password is required',
+                minLength: { value: 6, message: 'At least 6 characters' },
+              })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Member type
-            </label>
+          <Field label="Member type">
             <select
-              name="memberType"
-              value={form.memberType}
-              onChange={handleChange}
+              {...register('memberType')}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {MEMBER_TYPES.map((t) => (
@@ -105,20 +89,20 @@ function SignupPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          {error && (
+          {signupMutation.error && (
             <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
-              {error}
+              {signupMutation.error.message}
             </p>
           )}
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg px-4 py-2 text-sm transition-colors"
+            disabled={signupMutation.isPending}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg px-4 py-2 text-sm"
           >
-            {loading ? 'Creating account…' : 'Create account'}
+            {signupMutation.isPending ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 
@@ -129,6 +113,24 @@ function SignupPage() {
           </Link>
         </p>
       </div>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string
+  error?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {children}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   )
 }

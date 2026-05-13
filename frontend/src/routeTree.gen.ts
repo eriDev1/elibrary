@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
+import { Route as AuthenticatedBorrowsRouteImport } from './routes/_authenticated/borrows'
 import { Route as AuthenticatedBorrowRouteImport } from './routes/_authenticated/borrow'
 import { Route as AuthenticatedBooksRouteImport } from './routes/_authenticated/books'
 
@@ -41,6 +42,11 @@ const AuthenticatedMembersRoute = AuthenticatedMembersRouteImport.update({
   path: '/members',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedBorrowsRoute = AuthenticatedBorrowsRouteImport.update({
+  id: '/borrows',
+  path: '/borrows',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedBorrowRoute = AuthenticatedBorrowRouteImport.update({
   id: '/borrow',
   path: '/borrow',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/books': typeof AuthenticatedBooksRoute
   '/borrow': typeof AuthenticatedBorrowRoute
+  '/borrows': typeof AuthenticatedBorrowsRoute
   '/members': typeof AuthenticatedMembersRoute
 }
 export interface FileRoutesByTo {
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/books': typeof AuthenticatedBooksRoute
   '/borrow': typeof AuthenticatedBorrowRoute
+  '/borrows': typeof AuthenticatedBorrowsRoute
   '/members': typeof AuthenticatedMembersRoute
 }
 export interface FileRoutesById {
@@ -76,13 +84,28 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/books': typeof AuthenticatedBooksRoute
   '/_authenticated/borrow': typeof AuthenticatedBorrowRoute
+  '/_authenticated/borrows': typeof AuthenticatedBorrowsRoute
   '/_authenticated/members': typeof AuthenticatedMembersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup' | '/books' | '/borrow' | '/members'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/books'
+    | '/borrow'
+    | '/borrows'
+    | '/members'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/books' | '/borrow' | '/members'
+  to:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/books'
+    | '/borrow'
+    | '/borrows'
+    | '/members'
   id:
     | '__root__'
     | '/'
@@ -91,6 +114,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/books'
     | '/_authenticated/borrow'
+    | '/_authenticated/borrows'
     | '/_authenticated/members'
   fileRoutesById: FileRoutesById
 }
@@ -138,6 +162,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMembersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/borrows': {
+      id: '/_authenticated/borrows'
+      path: '/borrows'
+      fullPath: '/borrows'
+      preLoaderRoute: typeof AuthenticatedBorrowsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/borrow': {
       id: '/_authenticated/borrow'
       path: '/borrow'
@@ -158,12 +189,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteChildren {
   AuthenticatedBooksRoute: typeof AuthenticatedBooksRoute
   AuthenticatedBorrowRoute: typeof AuthenticatedBorrowRoute
+  AuthenticatedBorrowsRoute: typeof AuthenticatedBorrowsRoute
   AuthenticatedMembersRoute: typeof AuthenticatedMembersRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedBooksRoute: AuthenticatedBooksRoute,
   AuthenticatedBorrowRoute: AuthenticatedBorrowRoute,
+  AuthenticatedBorrowsRoute: AuthenticatedBorrowsRoute,
   AuthenticatedMembersRoute: AuthenticatedMembersRoute,
 }
 

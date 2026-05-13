@@ -14,14 +14,15 @@ export class ReturnBookUseCase implements IUseCase<ReturnBookInput, Promise<bool
 
   async execute(input: ReturnBookInput): Promise<boolean> {
     const book = await this.bookRepository.findById(input.bookId);
+    if (!book) return false;
 
-    if (!book) {
+    const wasMarked = await this.borrowRepository.markReturned(input.bookId, new Date());
+    if (!wasMarked && book.isAvailable) {
       return false;
     }
 
     book.isAvailable = true;
     await this.bookRepository.update(book);
-
-    return this.borrowRepository.markReturned(input.bookId, new Date());
+    return true;
   }
 }

@@ -1,32 +1,26 @@
-import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { getSession } from '#/lib/auth'
-import type { Session } from '@supabase/supabase-js'
+import { useSessionQuery } from '#/lib/sessionQuery'
 
 export const Route = createFileRoute('/_authenticated')({
+  beforeLoad: async () => {
+    if (typeof window === 'undefined') return
+    const session = await getSession()
+    if (!session) throw redirect({ to: '/login' })
+  },
   component: AuthenticatedLayout,
 })
 
 function AuthenticatedLayout() {
-  const navigate = useNavigate()
-  const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const { isPending, session } = useSessionQuery()
 
-  useEffect(() => {
-    getSession().then((s) => {
-      setSession(s)
-      if (!s) navigate({ to: '/login' })
-    })
-  }, [navigate])
-
-  if (session === undefined) {
+  if (isPending || !session) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400 text-sm">
+      <div className="flex items-center justify-center py-24 text-gray-400 text-sm">
         Loading…
       </div>
     )
   }
-
-  if (!session) return null
 
   return <Outlet />
 }
