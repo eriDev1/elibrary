@@ -31,6 +31,7 @@ export function Nav() {
             {role === 'staff' && <NavLink to="/members" label="Members" />}
             {role === 'staff' && <NavLink to="/borrows" label="Borrows" />}
             {role === 'member' && <NavLink to="/borrow" label="Borrow" />}
+            {role === 'member' && <NavLink to="/my-history" label="My history" />}
           </div>
         </div>
 
@@ -58,7 +59,13 @@ export function Nav() {
   )
 }
 
-function NavLink({ to, label }: { to: '/books' | '/members' | '/borrows' | '/borrow'; label: string }) {
+function NavLink({
+  to,
+  label,
+}: {
+  to: '/books' | '/members' | '/borrows' | '/borrow' | '/my-history'
+  label: string
+}) {
   return (
     <Link
       to={to}

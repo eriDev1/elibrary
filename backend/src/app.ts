@@ -21,6 +21,7 @@ import { BorrowBookUseCase } from './usecases/BorrowBookUseCase';
 import { ReturnBookUseCase } from './usecases/ReturnBookUseCase';
 import { GetAllBorrowsUseCase } from './usecases/GetAllBorrowsUseCase';
 import { GetMyActiveBorrowsUseCase } from './usecases/GetMyActiveBorrowsUseCase';
+import { GetMyBorrowHistoryUseCase } from './usecases/GetMyBorrowHistoryUseCase';
 import { GetMemberLoanPeriodUseCase } from './usecases/GetMemberLoanPeriodUseCase';
 
 import { BookController } from './controllers/BookController';
@@ -74,6 +75,7 @@ const borrowBookUseCase = new BorrowBookUseCase(
 const returnBookUseCase = new ReturnBookUseCase(bookRepository, borrowRepository);
 const getAllBorrowsUseCase = new GetAllBorrowsUseCase(borrowRepository);
 const getMyActiveBorrowsUseCase = new GetMyActiveBorrowsUseCase(borrowRepository);
+const getMyBorrowHistoryUseCase = new GetMyBorrowHistoryUseCase(borrowRepository);
 const getMemberLoanPeriodUseCase = new GetMemberLoanPeriodUseCase(
   memberRepository,
   borrowingStrategyResolver
@@ -97,6 +99,7 @@ const borrowController = new BorrowController(
   returnBookUseCase,
   getAllBorrowsUseCase,
   getMyActiveBorrowsUseCase,
+  getMyBorrowHistoryUseCase,
   getMemberLoanPeriodUseCase
 );
 const authController = new AuthController(authService);
@@ -131,6 +134,7 @@ const start = async () => {
 
   fastify.post('/borrow', memberOnly, (req, rep) => borrowController.borrow(req, rep));
   fastify.get('/borrow/my', memberOnly, (req, rep) => borrowController.myActive(req, rep));
+  fastify.get('/borrow/history', memberOnly, (req, rep) => borrowController.myHistory(req, rep));
   fastify.get('/borrow/period', memberOnly, (req, rep) =>
     borrowController.memberLoanPeriod(req, rep)
   );

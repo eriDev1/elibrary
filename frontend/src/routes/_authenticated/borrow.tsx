@@ -70,6 +70,7 @@ function BorrowPage() {
     queryClient.invalidateQueries({ queryKey: ['books'] })
     if (memberId) {
       queryClient.invalidateQueries({ queryKey: ['myBorrows', memberId] })
+      queryClient.invalidateQueries({ queryKey: ['myBorrowHistory', memberId] })
     }
   }
 

@@ -6,37 +6,11 @@ MSc – Computer Science and Engineering
 
 2024/2025 
 
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
 Stilet e Arkitekturës dhe Mostrat e dizajnit 
 
 -Sistem për menaxhimin e një librarie- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
 Studenti: Erind Avdiu                                         Profesori: Ramadan Dervishi 
 
- 
 
 Shkurt, 2026. 
 
@@ -44,61 +18,9 @@ Shkurt, 2026.
 
 ​ 
 
-​ 
 
-​ 
-
-​ 
-
-​ 
-
-​ 
-
-​ 
-
-​ 
-
-​ 
-
-​ 
-
-​​ 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
-
- 
 
  1. Përshkrimi i projektit dhe objektivat 
-
- 
 
  1.1 Përshkrimi i Projektit 
 
@@ -195,6 +117,105 @@ Nëse dëshiron, mund ta formatoj këtë seksion direkt në stil raporti/teme di
  
                       Diagram 1. Use Case Diagram of Libraby Management System 
 
+
+                      Diagram descriprion (extracted from the diagram cause i cannot upload a diagram here, but professor critized me cause huazo liber shouldnt be connected with ktheje liber)
+
+                      # UML Use Case Diagram — Library Management System
+
+## Diagram Type
+UML Use Case Diagram
+
+## System Title
+Library Management System
+
+## Actors
+- Stafi i Bibliotekës (Library Staff) — positioned on the left side
+- Anëtari i Bibliotekës (Library Member) — positioned on the right side
+
+## Use Cases and Positioning
+
+1. Krijo Libër
+- Oval shape
+- Positioned at the top center
+- Connected with association lines to:
+  - Stafi i Bibliotekës
+  - Anëtari i Bibliotekës
+
+2. Listo Librat (Top Center)
+- Oval shape
+- Positioned directly below “Krijo Libër”
+- Connected with association lines to:
+  - Stafi i Bibliotekës
+  - Anëtari i Bibliotekës
+
+3. Listo Librat (Left Branch)
+- Oval shape
+- Positioned lower-left below the staff actor
+- Connected vertically downward to “Huazo Libër”
+
+4. Huazo Libër
+- Oval shape
+- Positioned in the lower-left area
+- Connected:
+  - upward to left “Listo Librat”
+  - horizontally to “Kthje Libër”
+  - downward to “Krijo Anëtar”
+
+5. Listo Anëtarët
+- Oval shape
+- Positioned lower-right below the member actor
+- Connected vertically downward to “Kthje Libër”
+
+6. Kthje Libër
+- Oval shape
+- Positioned in the lower-right area
+- Connected:
+  - upward to “Listo Anëtarët”
+  - horizontally to “Huazo Libër”
+
+7. Krijo Anëtar
+- Oval shape
+- Positioned at the bottom center
+- Connected upward to “Huazo Libër”
+
+## Actor Relationships
+
+### Stafi i Bibliotekës is associated with:
+- Krijo Libër
+- Listo Librat (top center)
+- Listo Librat (left branch)
+
+### Anëtari i Bibliotekës is associated with:
+- Krijo Libër
+- Listo Librat (top center)
+- Listo Anëtarët
+
+## Relationship Types
+- All relationships are standard UML association relationships
+- Represented using solid straight lines
+- No inheritance/generalization relationships
+- No <<include>> relationships
+- No <<extend>> relationships
+- No arrowheads are visible
+
+## Simplified Structural Layout
+
+                 Krijo Libër
+                 /         \
+                /           \
+      Staff ----             ---- Member
+                \           /
+                 Listo Librat
+
+         Listo Librat      Listo Anëtarët
+                |                 |
+          Huazo Libër ---- Kthje Libër
+                |
+          Krijo Anëtar
+
+
+
+
  
 
 Diagrami i rasteve të përdorimit paraqet ndërveprimin mes aktorëve dhe funksioneve kryesore të Sistemit të Menaxhimit të Bibliotekës. Në këtë diagram identifikohen dy aktorë kryesorë: Stafi i Bibliotekës dhe Anëtari i Bibliotekës, të cilët komunikojnë me sistemin përmes rasteve të ndryshme të përdorimit (use cases). Diagrami tregon qartë kufirin e sistemit dhe funksionalitetet që ofrohen për secilin rol. 
@@ -254,6 +275,334 @@ Rastet e përdorimit të paraqitura në diagram përfshijnë: krijimin e librit,
  
 
 Diagram 2. Class Diagram of System. 
+
+
+(Same as in the diagram i mentioned up, but now we have to humanly design them cause of the incosisntencies and somewhere was albanian somewhere english..)
+
+
+# UML Class Diagram — Library Management System
+
+## Diagram Type
+UML Class Diagram
+
+## Overall Structure
+The diagram is divided into four horizontal architectural layers:
+1. Controllers
+2. Use Cases
+3. BaseLibraryService + Interfaces
+4. Domain
+
+The layout flows from top to bottom.
+
+---
+
+# 1. Controllers Layer
+
+Positioned at the top of the diagram inside a dashed container labeled “Controllers”.
+
+## Classes
+
+### BookController
+Position: top-left
+
+Methods:
+- create(input)
+- CreateBookInput
+- boolean
+
+Relations:
+- Uses CreateBookUseCase
+- Uses GetAllBooksUseCase
+
+---
+
+### MemberController
+Position: top-center
+
+Methods:
+- create(input)
+- CreateMemberInput
+- getAll()
+- Member[]
+
+Relations:
+- Uses CreateBookUseCase
+- Uses GetAllBooksUseCase
+- Uses BorrowController
+
+---
+
+### BorrowController
+Position: top-right
+
+Methods:
+- borrow(input)
+- BorrowBookInput
+- boolean
+
+Relations:
+- Uses GetAllBooksUseCase
+
+---
+
+# 2. Use Cases Layer
+
+Positioned below Controllers inside a dashed container labeled “Use Cases”.
+
+## Interfaces
+
+### IUseCase<Input, TOutput>
+Position: upper-left in Use Cases section
+
+Method:
+- execute(input): TOutput
+
+---
+
+### IUseCase<void, Book[] | TOutput>
+Position: upper-right in Use Cases section
+
+Method:
+- execute(input): TOutput
+
+---
+
+## Classes
+
+### CreateBookUseCase
+Position: middle-left
+
+Implements:
+- IUseCase<CreateBookInput, boolean>
+
+Methods:
+- validate(book): boolean
+- createBook(book): void
+- findById(id: string): Book | null
+- findAll(): Book[]
+
+Relations:
+- Depends on IBookRepository
+
+---
+
+### GetAllBooksUseCase
+Position: middle-right
+
+Implements:
+- IUseCase<void, Book[] | TOutput>
+
+Methods:
+- validate(book: Book): boolean
+- create(member, member): void | null
+- findAll(): Book[]
+- update(book, book): void
+
+Relations:
+- Depends on StandardBorrowingStrategy
+
+---
+
+# 3. Interfaces and Service Layer
+
+Positioned below Use Cases.
+
+## Interfaces
+
+### IBookRepository
+Position: left side
+
+Attributes:
+- items: T[]
+
+Methods:
+- validate(item: T): boolean
+- getAll(): T[]
+
+Relations:
+- Connected to BaseLibraryService<T>
+
+---
+
+### StandardBorrowingStrategy
+Position: right side
+
+Implements:
+- IBorrowingStrategy
+
+Attributes:
+- items: T[]
+
+Methods:
+- canBorrow(member): boolean
+- getBorrowDuration(): number
+
+Relations:
+- Connected to BaseLibraryService<T>
+
+---
+
+### IBorrowingStrategy
+Position: above StandardBorrowingStrategy
+
+Methods:
+- canBorrow(member): boolean
+- getBorrowDuration(): number
+
+Implemented by:
+- StandardBorrowingStrategy
+
+---
+
+## Abstract/Base Class
+
+### BaseLibraryService<T>
+Position: center
+
+Attributes:
+- items: T[]
+
+Methods:
+- validate(item: T): boolean
+- getAll(): T[]
+- add(item: T): void
+
+Relations:
+- Inherited/used by:
+  - IBookRepository
+  - StandardBorrowingStrategy
+
+---
+
+# 4. Domain Layer
+
+Positioned at the bottom inside a dashed container labeled “Domain”.
+
+## Classes
+
+### Book
+Position: bottom-left
+
+Attributes:
+- id: string
+- title: string
+- author: string
+- isbn: string
+- isAvailable: boolean
+
+Constructor:
+- constructor(id: string, title: string, author: string, isbn: string, isAvailable: boolean)
+
+Relations:
+- Connected to BorrowRecord
+
+---
+
+### Member
+Position: bottom-center
+
+Attributes:
+- id: string
+- name: string
+- email: string
+- membership: string
+
+Relations:
+- Connected to BorrowRecord
+
+---
+
+### BorrowRecord
+Position: bottom-center below Member
+
+Attributes:
+- id: string
+- bookId: string
+- memberId: string
+- borrowDate: Date
+- dueDate: Date
+
+Constructor:
+- constructor(id: string, bookId: string, memberId: string, borrowDate: Date, dueDate: Date)
+
+Relations:
+- Connected to Book
+- Connected to Member
+
+---
+
+# Additional Bottom-Right Interfaces
+
+### IBookRepository
+Position: bottom-right
+
+Methods:
+- create(book: Book): void
+- findById(id: string): Book
+- findAll(): Book[]
+- update(book): void
+
+---
+
+### IUseCase<TInput, TOutput>
+Position: bottom-right below IBookRepository
+
+Method:
+- execute(input: TInput): TOutput
+
+---
+
+# Relationship Types
+
+## Dependency Relationships
+- Represented using dashed arrows labeled “uses”
+- Controllers depend on Use Cases
+
+## Interface Implementation
+- Represented using dashed lines with hollow triangle arrows
+- CreateBookUseCase implements IUseCase
+- GetAllBooksUseCase implements IUseCase
+- StandardBorrowingStrategy implements IBorrowingStrategy
+
+## Associations
+- Solid lines between domain entities
+- BorrowRecord associated with:
+  - Book
+  - Member
+
+## Generic/Inheritance Style Relations
+- BaseLibraryService<T> acts as a shared generic base/service structure
+
+---
+
+# Simplified Structural Layout
+
+Controllers
+- BookController
+- MemberController
+- BorrowController
+
+↓ uses
+
+Use Cases
+- CreateBookUseCase
+- GetAllBooksUseCase
+- IUseCase interfaces
+
+↓ depends on
+
+Interfaces / Services
+- IBookRepository
+- IBorrowingStrategy
+- StandardBorrowingStrategy
+- BaseLibraryService<T>
+
+↓ domain entities
+
+Domain
+- Book
+- Member
+- BorrowRecord
 
  
 
@@ -344,6 +693,146 @@ BorrowController kthen përgjigje HTTP 201 me BorrowRecord në rast suksesi ose 
 Diagram 3. Diagramet e sekuencës për krijimin e librit dhe huazimin e librit. 
 
 6. Diagrami i Aktivitetit (activity diagram) 
+
+
+# Sequence Diagrams Summary
+
+## 1. Create Book Sequence Diagram
+
+### Participants (Left → Right)
+1. Client
+2. Fastify
+3. BookController
+4. CreateBookUseCase
+5. BookService
+6. Book
+
+---
+
+### Flow
+1. Client sends:
+   `POST /books`
+
+2. Fastify calls:
+   `create(request, reply)` on BookController
+
+3. BookController:
+   - extracts input from `request.body`
+   - calls:
+     `CreateBookUseCase.execute(input)`
+
+4. CreateBookUseCase:
+   - creates:
+     `new Book(input.title, input.author, input.isbn)`
+   - calls:
+     `BookService.create`
+
+5. BookService:
+   - validates book
+   - adds book
+   - returns `Book`
+
+6. Controller returns:
+   `201 Created (Book)`
+
+---
+
+### Visual Structure
+- Participants arranged horizontally
+- Dashed vertical lifelines
+- Activation bars on:
+  - BookController
+  - CreateBookUseCase
+  - BookService
+- Object creation (`new Book`) appears near Book lifeline
+- Messages flow top → bottom
+- Return arrows flow right → left
+
+---
+
+## 2. Borrow Book Sequence Diagram
+
+### Participants (Left → Right)
+1. Client
+2. Fastify
+3. BorrowController
+4. BorrowBookUseCase
+5. BookService
+6. Member
+
+---
+
+### Flow
+1. Client sends:
+   `POST /borrow (bookId, memberId)`
+
+2. Fastify calls:
+   `borrow(request, reply)`
+
+3. BorrowController:
+   - extracts input from request body
+   - calls:
+     `BorrowBookUseCase.execute(input)`
+
+4. BorrowBookUseCase:
+   - calls:
+     `BookService.findById(bookId)`
+   - calls:
+     `MemberService.findById(memberId)`
+
+---
+
+### ALT Conditional Fragment
+
+#### Success Branch
+- call:
+  `borrowingStrategy.canBorrow(member, book)`
+
+- if valid:
+  - calculate duration
+  - call:
+    `borrowingStrategy.getBorrowDuration(...)`
+
+#### Failure Branch
+- create:
+  `new BorrowRecord(book.id, member.id, borrowDate, duration)`
+
+- return:
+  `BorrowRecord`
+
+- controller returns:
+  `400 Bad Request (Error)`
+
+---
+
+### Visual Structure
+- Horizontal participant arrangement
+- Dashed lifelines
+- Activation bars on controllers/use cases/services
+- `alt` fragment placed in middle-lower section
+- Success and Failure branches separated inside fragment
+- Sequence flows vertically downward
+
+---
+
+# Architectural Pattern Observed
+
+```text
+Controller → UseCase → Service → Entity
+```
+
+### SOLID / Design Notes
+- Controllers handle requests only
+- UseCases contain orchestration/business logic
+- Services perform domain operations
+- Entities represent domain models
+- Separation of concerns is clearly applied
+- Aligns mainly with:
+  - SRP (Single Responsibility Principle)
+  - Clean Architecture layering
+
+
+
 
  
 
@@ -451,6 +940,360 @@ Interface-t ofrojnë kontrata të qarta për shërbimet dhe use case-t, duke leh
  
 
 Diagrami 6. Dizajni i Arkitekturës me shtresa të sistemit. 
+
+
+# Layered Architecture Diagram Summary
+
+# Diagram Type
+```text
+Layered Architecture / Clean Architecture Diagram
+```
+
+---
+
+# Overall Vertical Structure
+
+The diagram is organized vertically from top → bottom into 5 layers:
+
+```text
+1. Application Entry Point
+2. Controller Layer
+3. Use Case Layer
+4. Service Layer
+5. Domain Layer
+```
+
+Each layer is represented as a large colored horizontal container.
+
+---
+
+# 1. Application Entry Point Layer
+
+## Position
+- Topmost layer
+- Large blue container
+
+## Component
+```text
+Application Entry Point
+```
+
+## Relations
+Connected downward to:
+- BookController
+- MemberController
+- BorrowController
+
+Connections are direct arrows from the entry point toward controllers.
+
+---
+
+# 2. Controller Layer
+
+## Position
+- Below Application Entry Point
+- Green container
+
+## Components (Left → Right)
+```text
+BookController
+MemberController
+BorrowController
+```
+
+---
+
+## Relations to Use Cases
+
+### BookController
+Connected to:
+```text
+CreateBookUseCase
+```
+
+### MemberController
+Connected to:
+```text
+GetAllBooksUseCase
+BorrowBookUseCase
+```
+
+### BorrowController
+Connected to:
+```text
+CreateMemberUseCase
+ReturnBookUseCase
+```
+
+Arrows point downward from controllers to use cases.
+
+---
+
+# 3. Use Case Layer
+
+## Position
+- Middle section
+- Purple container
+
+## Components Layout
+
+### Top Row
+```text
+CreateBookUseCase
+GetAllBooksUseCase
+CreateMemberUseCase
+```
+
+### Bottom Row
+```text
+GetAllMembersUseCase
+BorrowBookUseCase
+ReturnBookUseCase
+```
+
+---
+
+## Internal Structure
+- Use cases are evenly distributed horizontally.
+- Vertical arrows connect related use cases and services.
+
+---
+
+# Relations to Services
+
+### CreateBookUseCase
+↓
+```text
+BookService
+```
+
+### BorrowBookUseCase
+↓
+```text
+MemberService
+```
+
+### ReturnBookUseCase
+↓
+```text
+BorrowingStrategy
+```
+
+Connections are direct downward arrows.
+
+---
+
+# 4. Service Layer
+
+## Position
+- Below Use Case Layer
+- Pink/Purple container
+
+## Components (Left → Right)
+
+```text
+BookService
+MemberService
+BorrowingStrategy
+```
+
+---
+
+# BorrowingStrategy Internal Structure
+
+Contains two strategy implementations:
+
+```text
+FirstComeFirstServeBorrowingStrategy
+PriorityMemberBorrowingStrategy
+```
+
+These appear stacked vertically inside the strategy component.
+
+---
+
+# Service Relations
+
+### BookService
+Connected downward to:
+```text
+Book
+```
+
+### MemberService
+Connected downward to:
+```text
+Member
+```
+
+### BorrowingStrategy
+Connected downward to:
+```text
+BorrowingRecord
+iBookRepository
+iMemberRepository
+```
+
+Some relations use:
+- dashed arrows
+- dependency-style connectors
+
+---
+
+# 5. Domain Layer
+
+## Position
+- Bottom layer
+- Orange container
+
+## Components (Left → Right)
+
+```text
+Book
+Member
+BorrowingRecord
+iBookRepository
+iMemberRepository
+```
+
+---
+
+# Domain Layer Structure
+
+### Entities
+```text
+Book
+Member
+BorrowingRecord
+```
+
+### Repository Interfaces
+```text
+iBookRepository
+iMemberRepository
+```
+
+Repositories are positioned toward the right side.
+
+---
+
+# Relationship Types
+
+## Direct Dependency
+Represented using:
+```text
+solid arrows
+```
+
+Used between:
+- Controllers → UseCases
+- UseCases → Services
+- Services → Domain entities
+
+---
+
+## Interface / Abstraction Dependency
+Represented using:
+```text
+dashed arrows
+```
+
+Used mainly around:
+- repositories
+- strategy dependencies
+
+---
+
+# Visual Layout Summary
+
+## Layer Styling
+- Each layer uses a different background color.
+- Components are small rounded rectangles.
+- Layers are full-width horizontal sections.
+
+---
+
+## Flow Direction
+Architecture dependency direction:
+```text
+Top → Bottom
+```
+
+---
+
+# Architectural Pattern
+
+## Clean Architecture Style
+```text
+Entry Point
+    ↓
+Controllers
+    ↓
+Use Cases
+    ↓
+Services
+    ↓
+Domain
+```
+
+---
+
+# SOLID Principles Reflected
+
+## Single Responsibility Principle (SRP)
+- Controllers only manage requests.
+- UseCases handle application logic.
+- Services contain operational/domain services.
+- Domain layer contains entities/interfaces only.
+
+---
+
+## Dependency Inversion Principle (DIP)
+- Use of:
+  ```text
+  iBookRepository
+  iMemberRepository
+  ```
+  indicates dependency on abstractions instead of concrete implementations.
+
+---
+
+## Open/Closed Principle (OCP)
+- `BorrowingStrategy`
+  supports multiple interchangeable strategies:
+  ```text
+  FirstComeFirstServeBorrowingStrategy
+  PriorityMemberBorrowingStrategy
+  ```
+
+---
+
+# Positioning Summary
+
+## Horizontal Distribution
+```text
+Controllers
+UseCases
+Services
+Domain Objects
+```
+are aligned horizontally within their own layers.
+
+---
+
+## Vertical Dependency Chain
+Typical dependency path:
+```text
+Application Entry Point
+    ↓
+Controller
+    ↓
+UseCase
+    ↓
+Service
+    ↓
+Domain Entity / Repository
+```
 
 Implementimi dhe përdorimi 
 

@@ -7,6 +7,8 @@ export const queryKeys = {
   borrows: (pageIndex: number, pageSize: number) => ['borrows', pageIndex, pageSize] as const,
   myBorrows: (memberId: string, pageIndex: number, pageSize: number) =>
     ['myBorrows', memberId, pageIndex, pageSize] as const,
+  myBorrowHistory: (memberId: string, pageIndex: number, pageSize: number) =>
+    ['myBorrowHistory', memberId, pageIndex, pageSize] as const,
   memberBorrows: (memberId: string, pageIndex: number, pageSize: number) =>
     ['memberBorrows', memberId, pageIndex, pageSize] as const,
 }
