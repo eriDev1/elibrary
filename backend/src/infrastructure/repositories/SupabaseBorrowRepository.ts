@@ -3,6 +3,7 @@ import {
   BorrowReportItem,
   IBorrowRepository,
   MemberActiveBorrow,
+  MemberBorrowHistoryEntry,
 } from '../../domain/interfaces/IBorrowRepository';
 import { BorrowRecord } from '../../domain/entities/BorrowRecord';
 
@@ -25,6 +26,18 @@ interface MemberBorrowRow {
   book_id: string;
   borrow_date: string;
   due_date: string;
+  books:
+    | { title: string; author: string; isbn: string }
+    | { title: string; author: string; isbn: string }[]
+    | null;
+}
+
+interface MemberBorrowHistoryRow {
+  id: string;
+  book_id: string;
+  borrow_date: string;
+  due_date: string;
+  return_date: string | null;
   books:
     | { title: string; author: string; isbn: string }
     | { title: string; author: string; isbn: string }[]
@@ -131,6 +144,29 @@ export class SupabaseBorrowRepository implements IBorrowRepository {
         book_isbn: b?.isbn ?? '',
         borrow_date: row.borrow_date,
         due_date: row.due_date,
+      };
+    });
+  }
+
+  async findBorrowHistoryForMember(memberId: string): Promise<MemberBorrowHistoryEntry[]> {
+    const { data, error } = await this.supabase
+      .from('borrow_records')
+      .select('id, book_id, borrow_date, due_date, return_date, books(title, author, isbn)')
+      .eq('member_id', memberId)
+      .order('borrow_date', { ascending: false });
+    if (error) throw new Error(error.message);
+
+    return (data as MemberBorrowHistoryRow[]).map((row) => {
+      const b = singleBook(row.books);
+      return {
+        id: row.id,
+        book_id: row.book_id,
+        book_title: b?.title ?? '(deleted)',
+        book_author: b?.author ?? '',
+        book_isbn: b?.isbn ?? '',
+        borrow_date: row.borrow_date,
+        due_date: row.due_date,
+        return_date: row.return_date,
       };
     });
   }

@@ -19,6 +19,17 @@ export interface Member {
   updated_at: string
 }
 
+export interface MemberBorrowHistoryEntry {
+  id: string
+  book_id: string
+  book_title: string
+  book_author: string
+  book_isbn: string
+  borrow_date: string
+  due_date: string
+  return_date: string | null
+}
+
 export interface BorrowReportItem {
   id: string
   book_id: string

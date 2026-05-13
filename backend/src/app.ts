@@ -16,6 +16,7 @@ import { CreateMemberUseCase } from './usecases/CreateMemberUseCase';
 import { GetAllMembersUseCase } from './usecases/GetAllMembersUseCase';
 import { UpdateMemberUseCase } from './usecases/UpdateMemberUseCase';
 import { DeleteMemberUseCase } from './usecases/DeleteMemberUseCase';
+import { GetMemberBorrowHistoryUseCase } from './usecases/GetMemberBorrowHistoryUseCase';
 import { BorrowBookUseCase } from './usecases/BorrowBookUseCase';
 import { ReturnBookUseCase } from './usecases/ReturnBookUseCase';
 import { GetAllBorrowsUseCase } from './usecases/GetAllBorrowsUseCase';
@@ -59,6 +60,10 @@ const createMemberUseCase = new CreateMemberUseCase(memberRepository);
 const getAllMembersUseCase = new GetAllMembersUseCase(memberRepository);
 const updateMemberUseCase = new UpdateMemberUseCase(memberRepository);
 const deleteMemberUseCase = new DeleteMemberUseCase(memberRepository);
+const getMemberBorrowHistoryUseCase = new GetMemberBorrowHistoryUseCase(
+  memberRepository,
+  borrowRepository
+);
 
 const borrowBookUseCase = new BorrowBookUseCase(
   bookRepository,
@@ -84,7 +89,8 @@ const memberController = new MemberController(
   createMemberUseCase,
   getAllMembersUseCase,
   updateMemberUseCase,
-  deleteMemberUseCase
+  deleteMemberUseCase,
+  getMemberBorrowHistoryUseCase
 );
 const borrowController = new BorrowController(
   borrowBookUseCase,
@@ -116,6 +122,9 @@ const start = async () => {
   fastify.delete('/books/:id', staffOnly, (req, rep) => bookController.delete(req, rep));
 
   fastify.get('/members', staffOnly, (req, rep) => memberController.getAll(req, rep));
+  fastify.get('/members/:id/borrows', staffOnly, (req, rep) =>
+    memberController.borrowHistory(req, rep)
+  );
   fastify.post('/members', staffOnly, (req, rep) => memberController.create(req, rep));
   fastify.put('/members/:id', staffOnly, (req, rep) => memberController.update(req, rep));
   fastify.delete('/members/:id', staffOnly, (req, rep) => memberController.delete(req, rep));

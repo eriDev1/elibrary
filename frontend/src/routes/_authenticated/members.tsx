@@ -5,7 +5,7 @@ import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react'
 import { api } from '#/lib/api'
 import { getRole, getSession } from '#/lib/auth'
 import { queryKeys } from '#/lib/queryKeys'
-import type { Member } from '#/lib/types'
+import type { Member, MemberBorrowHistoryEntry } from '#/lib/types'
 import { Modal } from '#/components/Modal'
 import { ConfirmDialog } from '#/components/ConfirmDialog'
 import { MemberForm, type MemberFormValues } from '#/components/MemberForm'
@@ -26,10 +26,20 @@ function MembersPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<Member | null>(null)
   const [deleting, setDeleting] = useState<Member | null>(null)
+  const [historyMember, setHistoryMember] = useState<Member | null>(null)
 
   const membersQuery = useQuery({
     queryKey: queryKeys.members(search),
     queryFn: () => api.get<Member[]>(`/members?search=${encodeURIComponent(search)}`),
+  })
+
+  const historyQuery = useQuery({
+    queryKey: historyMember
+      ? queryKeys.memberBorrows(historyMember.id)
+      : ['memberBorrows', 'idle'],
+    queryFn: () =>
+      api.get<MemberBorrowHistoryEntry[]>(`/members/${historyMember!.id}/borrows`),
+    enabled: historyMember !== null,
   })
 
   function invalidateMembers() {
@@ -129,7 +139,11 @@ function MembersPage() {
               </tr>
             ) : (
               members.map((m) => (
-                <tr key={m.id} className="hover:bg-gray-50">
+                <tr
+                  key={m.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setHistoryMember(m)}
+                >
                   <td className="px-4 py-3 font-medium text-gray-900">{m.name}</td>
                   <td className="px-4 py-3 text-gray-600">{m.email}</td>
                   <td className="px-4 py-3">
@@ -140,7 +154,10 @@ function MembersPage() {
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {new Date(m.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <td
+                    className="px-4 py-3 text-right whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       onClick={() => setEditing(m)}
                       className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50 mr-1"
@@ -196,6 +213,85 @@ function MembersPage() {
         onCancel={() => setDeleting(null)}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
       />
+
+      <Modal
+        wide
+        open={historyMember !== null}
+        onClose={() => setHistoryMember(null)}
+        title={historyMember ? `Borrow history — ${historyMember.name}` : 'Borrow history'}
+      >
+        {historyMember && (
+          <>
+            {historyQuery.isPending && (
+              <div className="text-gray-400 text-sm py-10 text-center">Loading…</div>
+            )}
+            {historyQuery.error && (
+              <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                {historyQuery.error.message}
+              </div>
+            )}
+            {!historyQuery.isPending && !historyQuery.error && (
+              <div className="rounded-lg border border-gray-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Book</th>
+                      <th className="px-3 py-2 text-left">ISBN</th>
+                      <th className="px-3 py-2 text-left">Borrowed</th>
+                      <th className="px-3 py-2 text-left">Due</th>
+                      <th className="px-3 py-2 text-left">Returned</th>
+                      <th className="px-3 py-2 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(historyQuery.data ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-3 py-8 text-center text-gray-400">
+                          No borrows yet
+                        </td>
+                      </tr>
+                    ) : (
+                      (historyQuery.data ?? []).map((row) => (
+                        <tr key={row.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-gray-900">{row.book_title}</div>
+                            <div className="text-xs text-gray-500">{row.book_author}</div>
+                          </td>
+                          <td className="px-3 py-2 text-gray-500 font-mono text-xs">
+                            {row.book_isbn}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                            {new Date(row.borrow_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                            {new Date(row.due_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                            {row.return_date
+                              ? new Date(row.return_date).toLocaleDateString()
+                              : '—'}
+                          </td>
+                          <td className="px-3 py-2">
+                            {row.return_date === null ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                                Returned
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

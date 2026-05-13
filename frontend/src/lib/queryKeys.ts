@@ -4,4 +4,5 @@ export const queryKeys = {
   members: (search: string = '') => ['members', search] as const,
   borrows: ['borrows'] as const,
   myBorrows: (memberId: string) => ['myBorrows', memberId] as const,
+  memberBorrows: (memberId: string) => ['memberBorrows', memberId] as const,
 }

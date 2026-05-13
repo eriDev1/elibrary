@@ -6,9 +6,10 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: React.ReactNode
+  wide?: boolean
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, children, wide }: ModalProps) {
   useEffect(() => {
     if (!open) return
     function handleEsc(e: KeyboardEvent) {
@@ -22,8 +23,12 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div
+        className={`bg-white rounded-2xl shadow-xl w-full p-6 ${
+          wide ? 'max-w-4xl max-h-[85vh] flex flex-col' : 'max-w-md'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4 shrink-0">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
@@ -32,7 +37,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
             <X size={18} />
           </button>
         </div>
-        {children}
+        <div className={wide ? 'overflow-y-auto min-h-0 flex-1 pr-1 -mr-1' : ''}>{children}</div>
       </div>
     </div>
   )

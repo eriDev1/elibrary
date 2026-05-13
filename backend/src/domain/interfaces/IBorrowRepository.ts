@@ -24,10 +24,22 @@ export interface MemberActiveBorrow {
   due_date: string;
 }
 
+export interface MemberBorrowHistoryEntry {
+  id: string;
+  book_id: string;
+  book_title: string;
+  book_author: string;
+  book_isbn: string;
+  borrow_date: string;
+  due_date: string;
+  return_date: string | null;
+}
+
 export interface IBorrowRepository {
   create(record: BorrowRecord): Promise<BorrowRecord>;
   findActiveByBookId(bookId: string): Promise<BorrowRecord | undefined>;
   markReturned(bookId: string, returnDate: Date): Promise<boolean>;
   findAllWithDetails(): Promise<BorrowReportItem[]>;
   findActiveBorrowsForMember(memberId: string): Promise<MemberActiveBorrow[]>;
+  findBorrowHistoryForMember(memberId: string): Promise<MemberBorrowHistoryEntry[]>;
 }
