@@ -1,0 +1,37 @@
+@startuml Krijimi_i_librit_POST_books
+title Krijimi i librit (POST /books) — staf
+
+actor "Klienti" as K
+participant "Fastify" as F
+participant "BookController" as BC
+participant "CreateBookUseCase" as UC
+participant "BookRepository" as BR
+database "Supabase" as DB
+
+K -> F: POST /books\nJSON (title, author, isbn)\nAuthorization: Bearer
+activate F
+F -> BC: create(request, reply)
+activate BC
+BC -> UC: execute(body)
+activate UC
+UC -> UC: new Book(uuid, ...)
+UC -> BR: create(book)
+activate BR
+BR -> DB: INSERT book
+activate DB
+DB --> BR: ok
+deactivate DB
+BR --> UC: Book
+deactivate BR
+UC --> BC: Book
+deactivate UC
+BC -> BC: book.toJSON()
+BC --> K: 201 + JSON
+deactivate BC
+deactivate F
+
+note right of F
+  Middleware (opsional): JWT + rol staf
+end note
+
+@enduml

@@ -1,0 +1,23 @@
+@startuml Arkitektura_me_shtresa
+skinparam shadowing false
+skinparam backgroundColor white
+title Dizajni i arkitekturës me shtresa
+
+node "Klienti web\nReact · Vite · TanStack Router / Query" as n1 #E8F4FD
+node "Fastify dhe rrugët REST" as n2 #FFF4E5
+node "Middleware: verifikim JWT dhe rol (staf / anëtar)" as n3 #FFF4E5
+node "Kontrolluesit\nAuthController · BookController · MemberController · BorrowController" as n4 #FFF4E5
+node "Rastet e përdorimit\npër huazimin: MemberTypeBorrowingStrategyResolver\ndhe strategjitë Standard / Student / Premium" as n5 #E9F9E9
+node "Domeni: entitete dhe interface\nBook · Member · BorrowRecord · IBookRepository …" as n6 #EFE8FA
+node "Infrastruktura: repository Supabase dhe SupabaseAuthService" as n7 #EFE8FA
+database "PostgreSQL (Supabase)" as n8 #E8E8E8
+
+n1 -down-> n2 : HTTP / JSON
+n2 -down-> n3
+n3 -down-> n4
+n4 -down-> n5 : execute
+n5 -down-> n6 : përdor kontratat
+n6 -down-> n7 : zbatim
+n7 -down-> n8
+
+@enduml

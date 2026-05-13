@@ -16,25 +16,31 @@ Shkurt, 2026.
 
 ​​Përmbajtja 
 
-​ 
+1. Përshkrimi i projektit dhe objektivat  
+2. Kërkesat kryesore (funksionale, teknike, dizajn, endpoint-e API)  
+3. Diagrami i rasteve të përdorimit  
+4. Diagrami i klasave  
+5. Diagramet e sekuencës  
+6. Diagrami i aktivitetit  
+7. Arkitektura dhe parimet e dizajnit — Konkluzioni  
 
-
+​  
 
  1. Përshkrimi i projektit dhe objektivat 
 
  1.1 Përshkrimi i Projektit 
 
-Sistemi i Menaxhimit të Bibliotekës është një aplikacion backend i zhvilluar me Fastify dhe TypeScript, i ndërtuar për të demonstruar në mënyrë praktike dhe të strukturuar parimet e avancuara të Programimit të Orientuar në Objekte (OOP) dhe parimet e dizajnit SOLID. Projekti fokusohet në ndërtimin e një API-je të qëndrueshme, të tipizuar dhe të zgjerueshme, e cila simulon funksionimin real të një sistemi bibliotekar për menaxhimin e resurseve dhe proceseve të huazimit. 
+Sistemi i Menaxhimit të Bibliotekës është një zgjidhje e plotë web: një API REST me **Fastify** dhe **TypeScript** në backend, një klient me **React** (Vite, TanStack Router, TanStack Query, Tailwind CSS) në frontend, dhe **Supabase** për autentikim dhe për ruajtjen e të dhënave në **PostgreSQL**. Qëllimi është të demonstrohet në mënyrë praktike strukturimi me OOP dhe SOLID, me ndarje të qartë të përgjegjësive dhe kontrata përmes interface-ve.
 
-Përmes përdorimit të TypeScript, sistemi përfiton nga tipizimi statik, kontratat përmes interface-ve dhe kontrolli më i mirë i varësive mes moduleve. Projekti gjithashtu demonstron përdorimin e pattern-eve të zakonshme të dizajnit si Strategy, Repository dhe Dependency Injection për të ndërtuar një bazë të fortë arkitekturore. Në këtë mënyrë, aplikacioni shërben jo vetëm si zgjidhje funksionale, por edhe si shembull edukativ për ndërtimin e sistemeve backend të shkallëzueshme. 
+Përmes TypeScript-it, sistemi përfiton nga tipizimi statik dhe nga kontratat midis shtresave. Në backend përdoren pattern-et **Repository** (qasje në të dhëna), **Strategy** (rregulla huazimi sipas tipit të anëtarit) dhe **Dependency Injection** përmes konstruktorëve në `app.ts`. Autentikimi dhe autorizimi (role `staff` / `member`) lidhen me Supabase; biznesi i huazimit mbetet në use case-et dhe nuk duhet të kopjohet në klient. 
 
 1.2 Objektivat dhe qëllimi i projektit 
 
-Qëllimi kryesor i projektit është të demonstrojë në mënyrë të plotë dhe të argumentuar zbatimin praktik të parimeve të OOP dhe SOLID në një aplikacion real backend, duke treguar se si konceptet teorike si abstraksioni, trashëgimia, polimorfizmi dhe përdorimi i interface-ve mund të shndërrohen në zgjidhje konkrete për strukturimin e një sistemi funksional me rregulla të qarta biznesi 
+Qëllimi kryesor i projektit është të demonstrojë në mënyrë të plotë dhe të argumentuar zbatimin praktik të parimeve të OOP dhe SOLID në një aplikacion **full-stack** (API + klient web) me të dhëna të përhershme në Supabase, duke treguar se si konceptet teorike si abstraksioni, trashëgimia, polimorfizmi dhe përdorimi i interface-ve shndërrohen në zgjidhje konkrete për një sistem funksional me rregulla të qarta biznesi. 
 
 Projekti synon gjithashtu: 
 
-të krijojë një arkitekturë të ndarë në shtresa (controller, service, domain, repository) për ndarje të qartë të përgjegjësive 
+të krijojë një arkitekturë të ndarë në shtresa (controllers, use cases, domain, repositories, services për strategji, infrastructure për Supabase) për ndarje të qartë të përgjegjësive 
 
 të demonstrojë përdorimin e polimorfizmit përmes strategjive të ndryshme të huazimit të librave 
 
@@ -50,21 +56,17 @@ të dokumentojë strukturën përmes diagrameve UML për klasat dhe marrëdhëni
 
 2.1. Kërkesat funksionale 
 
-Sistemi duhet të ofrojë funksionalitete bazë për menaxhimin e një biblioteke në nivel backend përmes endpoint-eve API. Çdo funksion realizohet përmes kërkesave HTTP dhe trajtohet nga shtresa e controller-it dhe service-it. 
+Sistemi ofron funksionalitete përmes API-së së backend-it dhe ndërfaqes së frontend-it. Çdo veprim i mbrojtur kërkon token nga Supabase; rolet përcaktojnë çfarë lejohet.
 
-Krijimi i librave – Sistemi duhet të lejojë regjistrimin e një libri të ri duke pranuar të dhëna bazë si titulli, autori dhe ISBN. ISBN duhet të jetë unik dhe të validohet para ruajtjes. 
+**Librat** — Stafi: krijim, përditësim, fshirje. Të gjithë përdoruesit e autentikuar: listim me faqezim dhe kërkim (`search`). Çdo libër ka status disponueshmërie (p.sh. i disponueshëm / i huazuar) të derivuar nga huazimet aktive.
 
-Listimi i librave – Duhet të ekzistojë endpoint për kthimin e listës së të gjithë librave të regjistruar, së bashku me statusin e tyre (i disponueshëm / i huazuar). 
+**Anëtarët** — Stafi: krijim, listim me faqezim dhe kërkim, përditësim, fshirje. Lloji i anëtarit (`standard`, `student`, `premium`) përcakton strategjinë e huazimit. Regjistrimi publik (`/auth/signup`) krijon llogari anëtari në Supabase dhe rresht përkatës në bazë.
 
-Krijimi i anëtarëve – Sistemi duhet të mundësojë regjistrimin e anëtarëve me emër, email dhe lloj anëtari (p.sh. standard, premium, student). Email-i duhet të kontrollohet për format korrekt. 
+**Huazimi dhe kthimi** — Anëtari dërgon `bookId`; identiteti i anëtarit vjen nga token-i (jo nga trupi i kërkesës), që të parandalohet huazimi në emër të dikujt tjetër. Para huazimit kontrollohen disponueshmëria e librit dhe kufijtë sipas strategjisë. Kthimi përditëson rekordin e huazimit dhe disponueshmërinë e librit.
 
-Listimi i anëtarëve – Duhet të ofrohet funksion për marrjen e listës së plotë të anëtarëve ekzistues. 
+**Raportet dhe historia** — Stafi: listë e huazimeve me detaje (libër + anëtar), historia e huazimeve të një anëtari të caktuar. Anëtari: huazimet aktive me faqezim, **historia ime** e të gjitha huazimeve (`/borrow/history`), periudha e sugjeruar e huazimit sipas tipit të anëtarit.
 
-Huazimi i librave – Një anëtar mund të huazojë një libër vetëm nëse libri është i disponueshëm dhe nëse nuk tejkalohet limiti i huazimeve sipas rregullave të strategjisë së zgjedhur. Regjistrohet data e huazimit. 
-
-Kthimi i librave – Sistemi duhet të lejojë kthimin e një libri të huazuar dhe të përditësojë statusin e tij në të disponueshëm. 
-
-Kontrolli i disponueshmërisë – Para çdo huazimi, sistemi duhet të kontrollojë nëse libri është i lirë dhe nuk është i lidhur me një huazim aktiv. 
+**Frontend** — Faqe për librat, anëtarët (staf), raportin e huazimeve (staf), huazimin dhe kthimin (anëtar), dhe historinë time (anëtar); forma me validim, modale për edit, dialog konfirmimi për fshirje, tabela me faqezim server-side ku është e nevojshme. 
 
  
 
@@ -72,19 +74,21 @@ Kontrolli i disponueshmërisë – Para çdo huazimi, sistemi duhet të kontroll
 
 Këto kërkesa përcaktojnë mjedisin dhe mënyrën e implementimit teknik të sistemit. 
 
-Gjuhë Programimi: TypeScript 5.4.5 – përdoret për tipizim statik, interface dhe kontrata të qarta mes komponentëve. 
+**Backend:** TypeScript (projekti përdor versionin e deklaruar në `package.json`, p.sh. 5.4.x), Fastify 5.7.x, `@supabase/supabase-js` për klientin drejt Supabase.
 
-Framework: Fastify 5.7.4 – përdoret për ndërtimin e API-ve REST me performancë të lartë dhe strukturë plugin-based. 
+**Frontend:** React 19, Vite 8, TypeScript 6.x, TanStack Router / TanStack Start, TanStack Query, React Table, React Hook Form, Tailwind CSS 4, Supabase JS për sesion në shfletues.
 
-Runtime: Node.js – ekzekutimi i aplikacionit në server përmes modelit event-driven. 
+**Runtime:** Node.js për API-në.
 
-Arkitektura: Clean Architecture – ndarje në shtresa (controllers, services, domain, repositories) ku varësitë drejtohen nga jashtë drejt brendësisë së domenit. 
+**Arkitektura:** Qasje e ngjashme me Clean Architecture — controllers të hollë, use cases për një veprim aplikacioni, entitete domeni, interface repository-sh, implementime në `infrastructure/repositories` (BookRepository, MemberRepository, BorrowRepository) që përdorin Supabase/PostgREST. Strategjitë e huazimit janë në `services/`; nuk ka shtresë të veçantë “BookService” që zëvendëson repository-n.
 
-Ruajtja e të Dhënave: Në memorie – përdoren koleksione (arrays/maps) në repository për ruajtje të përkohshme, pa integrim me bazë të dhënash, për të mbajtur fokusin te dizajni dhe OOP. 
+**Ruajtja e të dhënave:** PostgreSQL përmes Supabase (skema SQL në repozitor, migrime ku aplikohen). Repository-t përmbajnë SQL/query përmes klientit Supabase, jo struktura në memorie.
 
-Validimi i input-it: Kontroll i të dhënave hyrëse në nivel controller/service për të parandaluar gjendje jo valide. 
+**Autentikimi:** Supabase Auth; middleware i Fastify-it verifikon token-in dhe ngarkon `user` me `id` dhe `role` për autorizim.
 
-Strukturë modulare: Kodi ndahet në module sipas domenit (books, members, loans). 
+**Validimi:** Validim i të dhënave hyrëse në controller dhe/ose në use case para shkrimit në bazë.
+
+**Strukturë modulare:** Organizim sipas domenit: books, members, borrows (rekordet e huazimit), plus `auth` dhe `middleware`.
 
  
 
@@ -92,21 +96,38 @@ Strukturë modulare: Kodi ndahet në module sipas domenit (books, members, loans
 
 Kërkesat e dizajnit fokusohen në cilësinë arkitekturore dhe mënyrën e strukturimit të kodit. 
 
-Zbatimi i parimeve OOP – Entitetet si Book, Member dhe Loan modelohen si klasa me encapsulation të atributeve dhe metodave. 
+Zbatimi i parimeve OOP — Entitetet **Book**, **Member** dhe **BorrowRecord** janë klasa domeni me atribute dhe metoda si `toJSON()` për përgjigje API me fusha në `snake_case`.
 
-Abstraksion dhe klasa abstrakte – Përdoren klasa abstrakte për tipe të përgjithshme (p.sh. MemberBase) nga të cilat trashëgohen tipe konkrete anëtarësh. 
+Abstraksion — Kontratat kryesore janë **interface**-et (`IBookRepository`, `IMemberRepository`, `IBorrowRepository`, `IBorrowingStrategy`, `IUseCase`). Nuk përdoret një hierarki trashëgimi `MemberBase` në kodin aktual; ndarja e sjelljes bëhet me **MemberType** dhe strategji.
 
-Polimorfizëm – Strategji të ndryshme huazimi implementojnë të njëjtin interface por me sjellje të ndryshme. 
+Polimorfizëm — `StandardBorrowingStrategy`, `StudentBorrowingStrategy`, `PremiumBorrowingStrategy` implementojnë të njëjtin kontrakt strategjie; `MemberTypeBorrowingStrategyResolver` zgjedh strategjinë sipas `memberType`.
 
-Interface – Repository dhe strategjitë definohen përmes interface-ve për të shkëputur implementimin nga përdorimi. 
+Interface — Use case-et varen nga interface-et e repository-ve dhe nga resolver-i i strategjisë, jo nga implementimet konkrete Supabase.
 
-SOLID (S dhe O në fokus) – Çdo klasë ka përgjegjësi të vetme, ndërsa funksionalitetet e reja shtohen me implementime të reja pa ndryshuar klasat ekzistuese. 
+SOLID — SRP në controller dhe use case; OCP për strategji të reja huazimi; LSP për strategjitë; ISP përmes interface-ve të ngushta repository; DIP kur use case-et pranojnë abstraksione në konstruktor.
 
-Dependency Injection – Shërbimet marrin varësi përmes konstruktorit, jo duke i krijuar vetë, për testim dhe zëvendësim më të lehtë. 
+Dependency Injection — Në `app.ts` instancat krijohen një herë dhe injektohen në controller-e.
 
-Dizajn i zgjerueshëm – Sistemi lejon shtimin e tipeve të reja anëtarësh, rregullave të reja huazimi dhe mënyrave të reja ruajtjeje pa ndryshim të kodit bazë. 
+Dizajn i zgjerueshëm — Shtimi i një strategjie të re huazimi ose i një metode të re në interface-in e repository-t, me implementim në `BorrowRepository` / `BookRepository`, pa prishur shtresën e use case-it nëse kontrata mbetet e njëjtë.
 
-Nëse dëshiron, mund ta formatoj këtë seksion direkt në stil raporti/teme diplome që të mbushë saktë disa faqe. 
+2.4. Përmbledhje e endpoint-eve të API-së (backend)
+
+| Metoda | Rruga | Roli | Shënim |
+|--------|--------|------|--------|
+| POST | `/auth/signup` | Regjistrim | Publik |
+| GET | `/health` | Status | Publik |
+| GET | `/books` | Lista / kërkim / faqezim | Të autentikuarit |
+| POST, PUT, DELETE | `/books`, `/books/:id` | CRUD libra | Staf |
+| GET, POST, PUT, DELETE | `/members`, `/members/:id` | CRUD anëtarë | Staf |
+| GET | `/members/:id/borrows` | Historia e anëtarit | Staf |
+| POST | `/borrow` | Huazo | Anëtar; `memberId` nga token |
+| POST | `/return` | Kthe | Anëtar |
+| GET | `/borrow/my` | Huazimet aktive të mia | Anëtar |
+| GET | `/borrow/history` | Historia ime | Anëtar |
+| GET | `/borrow/period` | Periudha sipas tipit | Anëtar |
+| GET | `/borrows` | Raporti i përgjithshëm | Staf |
+
+Parametrat e faqezimit të përbashkët: `page`, `page_size` ku përputhet me implementimin.
 
  
 
@@ -115,114 +136,88 @@ Nëse dëshiron, mund ta formatoj këtë seksion direkt në stil raporti/teme di
  
 
  
-                      Diagram 1. Use Case Diagram of Libraby Management System 
+Diagram 1. Diagrami i rasteve të përdorimit (Use Case) — sistemi i menaxhimit të bibliotekës
 
+Ky version përshkruan si duhet vizatuar diagrami në veglë UML (p.sh. draw.io, StarUML, PlantUML), jo si gjenerator automatik. Qëllimi është konsistencë: një rast përdorimi = një ovale, një lidhje = një asociacion aktor–rast, pa lidhje të kota midis dy rasteve vetëm sepse “janë në të njëjtin proces”.
 
-                      Diagram descriprion (extracted from the diagram cause i cannot upload a diagram here, but professor critized me cause huazo liber shouldnt be connected with ktheje liber)
+Shënim nga vlerësimi: **Huazo libër** dhe **Ktheje libër** nuk lidhen drejtpërdrejt me njëra-tjetrën. Ato janë dy raste të pavarura; secila lidhet vetëm me aktorin që e nis veprimin (anëtari). Në jetën reale anëtari mund të kthejë një libër pa e lidhur atë me një huazim të ri në të njëjtin moment diagrami.
 
-                      # UML Use Case Diagram — Library Management System
+---
 
-## Diagram Type
-UML Use Case Diagram
+### Aktorët (jashtë kufirit të sistemit)
 
-## System Title
-Library Management System
+| Aktor | Roli |
+|--------|------|
+| Stafi i bibliotekës | Menaxhon librat dhe anëtarët, sheh raportin e huazimeve |
+| Anëtari i bibliotekës | Shikon katalogun, huazon, kthen, sheh historinë e vet |
 
-## Actors
-- Stafi i Bibliotekës (Library Staff) — positioned on the left side
-- Anëtari i Bibliotekës (Library Member) — positioned on the right side
+---
 
-## Use Cases and Positioning
+### Rastet e përdorimit (brenda kufirit të sistemit)
 
-1. Krijo Libër
-- Oval shape
-- Positioned at the top center
-- Connected with association lines to:
-  - Stafi i Bibliotekës
-  - Anëtari i Bibliotekës
+Çdo rresht është një ovale i vetëm në diagram; emrat mbeten në shqip si në kërkesat funksionale.
 
-2. Listo Librat (Top Center)
-- Oval shape
-- Positioned directly below “Krijo Libër”
-- Connected with association lines to:
-  - Stafi i Bibliotekës
-  - Anëtari i Bibliotekës
+**Stafi — asociacion vetëm me këto raste**
 
-3. Listo Librat (Left Branch)
-- Oval shape
-- Positioned lower-left below the staff actor
-- Connected vertically downward to “Huazo Libër”
+- Krijo libër (dhe përditësim / fshirje libri nëse diagrami përfshin variantin e zgjeruar të sistemit aktual)
+- Listo librat (për nevojat administrative / katalog)
+- Krijo anëtar (dhe përditësim / fshirje anëtari sipas implementimit)
+- Listo anëtarët
+- Shiko raportin e huazimeve (të gjitha huazimet; për stafin)
+- Shiko historinë e huazimeve të një anëtari të caktuar (kur stafi zgjedh një anëtar)
 
-4. Huazo Libër
-- Oval shape
-- Positioned in the lower-left area
-- Connected:
-  - upward to left “Listo Librat”
-  - horizontally to “Kthje Libër”
-  - downward to “Krijo Anëtar”
+**Anëtari — asociacion vetëm me këto raste**
 
-5. Listo Anëtarët
-- Oval shape
-- Positioned lower-right below the member actor
-- Connected vertically downward to “Kthje Libër”
+- Listo librat (shfletim katalogu)
+- Huazo libër
+- Ktheje libër
+- Shiko historinë time të huazimeve (vetëm të dhënat e përdoruesit të autentikuar)
 
-6. Kthje Libër
-- Oval shape
-- Positioned in the lower-right area
-- Connected:
-  - upward to “Listo Anëtarët”
-  - horizontally to “Huazo Libër”
+**Raste që përfshihen nga të dy aktorët**
 
-7. Krijo Anëtar
-- Oval shape
-- Positioned at the bottom center
-- Connected upward to “Huazo Libër”
+- Vetëm **Listo librat**: nga stafi (menaxhim) dhe nga anëtari (katalog); në UML mbetet **një** ovale “Listo librat” me dy vija asociacioni, jo dy ovale me të njëjtin emër.
 
-## Actor Relationships
+---
 
-### Stafi i Bibliotekës is associated with:
-- Krijo Libër
-- Listo Librat (top center)
-- Listo Librat (left branch)
+### Çfarë nuk vizatohet (për të shmangur gabimet e zakonshme)
 
-### Anëtari i Bibliotekës is associated with:
-- Krijo Libër
-- Listo Librat (top center)
-- Listo Anëtarët
+- Asnjë vijë midis **Huazo libër** dhe **Ktheje libër**.
+- Asnjë vijë që nga **Huazo libër** shkon te **Krijo anëtar**; krijimi i anëtarit është veprim stafi, jo degë e huazimit.
+- Asnjë vijë nga **Listo anëtarët** te **Ktheje libër**; kthimi është veprim anëtari, jo i listës së anëtarëve.
 
-## Relationship Types
-- All relationships are standard UML association relationships
-- Represented using solid straight lines
-- No inheritance/generalization relationships
-- No <<include>> relationships
-- No <<extend>> relationships
-- No arrowheads are visible
+Lloji i lidhjeve: asociacion i thjeshtë aktor–rast përdorimi (vijë e plotë). Për këtë diagram nuk kërkohen <<include>> / <<extend>>, përveç nëse më vonë shtohen në mënyrë të argumentuar (p.sh. validim i ISBN si rast i brendshëm).
 
-## Simplified Structural Layout
+---
 
-                 Krijo Libër
-                 /         \
-                /           \
-      Staff ----             ---- Member
-                \           /
-                 Listo Librat
+### Skicë tekstuale e vendosjes (për ta nxjerrë pastaj në UML)
 
-         Listo Librat      Listo Anëtarët
-                |                 |
-          Huazo Libër ---- Kthje Libër
-                |
-          Krijo Anëtar
+Kjo është vetëm orientim hapësinor; në dorëzimin final diagrami bëhet me forma UML.
+
+```
+         STAFI                              [ SISTEMI ]                         ANËTARI
+           |                                      |                                 |
+           +--- Krijo / përditëso libër           |                                 +--- Listo librat
+           +--- Listo librat                      |                                 +--- Huazo libër
+           +--- Krijo / përditëso anëtar          |                                 +--- Ktheje libër
+           +--- Listo anëtarët                    |                                 +--- Historia ime
+           +--- Raport huazimesh                 |                                 |
+           +--- Historia e anëtarit (nga ID)     |                                 |
+```
+
+Në vizatim profesional, ovalet e rasteve vendosen brenda drejtkëndëshit të sistemit; aktorët janë majtas dhe djathtas. Vijat kalojnë nga stick figure te ovalet, jo nga ovale te ovale.
 
 
 
 
  
 
-Diagrami i rasteve të përdorimit paraqet ndërveprimin mes aktorëve dhe funksioneve kryesore të Sistemit të Menaxhimit të Bibliotekës. Në këtë diagram identifikohen dy aktorë kryesorë: Stafi i Bibliotekës dhe Anëtari i Bibliotekës, të cilët komunikojnë me sistemin përmes rasteve të ndryshme të përdorimit (use cases). Diagrami tregon qartë kufirin e sistemit dhe funksionalitetet që ofrohen për secilin rol. 
+Diagrami i rasteve të përdorimit paraqet ndërveprimin mes aktorëve dhe sistemit brenda një kufiri të qartë. Identifikohen dy aktorë: Stafi i Bibliotekës dhe Anëtari i Bibliotekës. Lidhjet janë vetëm asociacione aktor–rast përdorimi; **huazimi** dhe **kthimi** nuk lidhen me njëri-tjetrin si raste të veçanta, sepse përfaqësojnë dy transaksione të pavarura që anëtari i nis veç e veç.
 
-Stafi i Bibliotekës ka qasje administrative dhe kryen operacionet e menaxhimit të të dhënave, si krijimi i librave, krijimi i anëtarëve dhe shikimi i listave përkatëse. Ky aktor përfaqëson përdoruesin me privilegje të plota mbi sistemin. Në anën tjetër, Anëtari i Bibliotekës ka rol përdoruesi funksional, i fokusuar në operacionet e huazimit dhe kthimit të librave, si dhe në shikimin e katalogut të librave. 
+Stafi menaxhon librat dhe anëtarët (krijim, listim, përditësim dhe fshirje sipas implementimit aktual të API-së) dhe ka pamje mbi të gjitha huazimet si raport, si dhe mbi historinë e huazimeve të një anëtari të caktuar kur duhet kontroll administrativ.
 
-Rastet e përdorimit të paraqitura në diagram përfshijnë: krijimin e librit, listimin e librave, krijimin e anëtarit, listimin e anëtarëve, huazimin e librit dhe kthimin e librit. Këto raste mbulojnë rrjedhën bazë të proceseve të bibliotekës dhe përfaqësojnë funksionet minimale të nevojshme për funksionimin e sistemit backend. Diagrami shërben si përmbledhje vizuale e kërkesave funksionale dhe si bazë për modelimin e mëtejshëm të klasave dhe shërbimeve në arkitekturë. 
+Anëtari përdor katalogun, huazon, kthen dhe sheh **historinë e vet** të huazimeve; nuk ka rast përdorimi për të lexuar historinë e anëtarëve të tjerë.
+
+Rastet shtesë (raporti i përgjithshëm i huazimeve, historia individuale e anëtarit, historia “e imja”) pasqyrojnë zgjerimet e fundit të sistemit në frontend dhe backend, duke ruajtur ndarjen e roleve. Diagrami mbetet bazë për modelimin e klasave dhe të shtresave të arkitekturës. 
 
  
 
@@ -274,562 +269,172 @@ Rastet e përdorimit të paraqitura në diagram përfshijnë: krijimin e librit,
 
  
 
-Diagram 2. Class Diagram of System. 
+Diagram 2. Diagrami i klasave (UML) — përputhje me implementimin aktual
 
+Ky seksion përshkruan si duhet vizatuar diagrami i klasave në veglë UML, në përputhje të plotë me strukturën e projektit Fastify + TypeScript + Supabase. Teksti është në gjuhën shqipe; emrat e klasave dhe interfejsave në ovalet e diagramit mbeten të njëjtë me emrat në kod (TypeScript), sepse diagrami dokumenton implementimin real, jo një version të përkthyer të rremë.
 
-(Same as in the diagram i mentioned up, but now we have to humanly design them cause of the incosisntencies and somewhere was albanian somewhere english..)
+Shënim metodologjik: në versione të vjetra të dokumentacionit përmendej BaseLibraryService dhe BookService — ato nuk ekzistojnë në kod. Qasja në bazë bëhet përmes klasave të depozitës (repository) që implementojnë interfejsat e domenit; logjika e huazimit sipas tipit të anëtarit bëhet me strategji dhe me një klasë që zgjedh strategjinë e duhur.
 
+Shtresa e kontrolluesve HTTP (hyrja e aplikacionit)
 
-# UML Class Diagram — Library Management System
+Kontrolluesit janë klasa të holla: lexojnë kërkesën HTTP, thërrasin një rast përdorimi (use case), vendosin kodin e përgjigjes dhe trupin JSON. Nuk përmbajnë logjikë biznesi të gjatë.
 
-## Diagram Type
-UML Class Diagram
+Kontrolluesi i autentikimit (AuthController): regjistrim anëtari (signup); varët nga shërbimi i autentikimit përmes interfejsit IAuthService (implementim: SupabaseAuthService).
 
-## Overall Structure
-The diagram is divided into four horizontal architectural layers:
-1. Controllers
-2. Use Cases
-3. BaseLibraryService + Interfaces
-4. Domain
+Kontrolluesi i librave (BookController): krijim libri, listë me faqe dhe kërkim dhe filtrim sipas disponueshmërisë, përditësim, fshirje; varët nga CreateBookUseCase, GetAllBooksUseCase, UpdateBookUseCase, DeleteBookUseCase.
 
-The layout flows from top to bottom.
+Kontrolluesi i anëtarëve (MemberController): krijim, listë me faqe dhe kërkim, përditësim, fshirje anëtari, plus historia e huazimeve të një anëtari sipas identifikuesit në URL; varët nga CreateMemberUseCase, GetAllMembersUseCase, UpdateMemberUseCase, DeleteMemberUseCase, GetMemberBorrowHistoryUseCase.
 
----
+Kontrolluesi i huazimeve (BorrowController): huazim libri, kthim libri, raporti i përgjithshëm i huazimeve për stafin, huazimet aktive të anëtarit të hyrë, historia e huazimeve të anëtarit të hyrë, periudha e sugjeruar e huazimit; varët nga BorrowBookUseCase, ReturnBookUseCase, GetAllBorrowsUseCase, GetMyActiveBorrowsUseCase, GetMyBorrowHistoryUseCase, GetMemberLoanPeriodUseCase.
 
-# 1. Controllers Layer
+Shtresa e rasteve të përdorimit (biznesi i aplikacionit)
 
-Positioned at the top of the diagram inside a dashed container labeled “Controllers”.
+Çdo klasë rasti përdorimi implementon interfejsin IUseCase (metoda execute). Rastet për libra: CreateBookUseCase, GetAllBooksUseCase, UpdateBookUseCase, DeleteBookUseCase. Rastet për anëtarë: CreateMemberUseCase, GetAllMembersUseCase, UpdateMemberUseCase, DeleteMemberUseCase, GetMemberBorrowHistoryUseCase. Rastet për huazim dhe raporte: BorrowBookUseCase, ReturnBookUseCase, GetAllBorrowsUseCase, GetMyActiveBorrowsUseCase, GetMyBorrowHistoryUseCase, GetMemberLoanPeriodUseCase.
 
-## Classes
+Rastet e përdorimit varen nga interfejsat e depozitës së të dhënave (IBookRepository, IMemberRepository, IBorrowRepository) dhe, ku duhet, nga zgjidhësi i strategjisë së huazimit (MemberTypeBorrowingStrategyResolver) që implementon IBorrowingStrategyResolver.
 
-### BookController
-Position: top-left
+Shtresa e shërbimeve të domenit (strategjitë e huazimit)
 
-Methods:
-- create(input)
-- CreateBookInput
-- boolean
+Tre klasa strategjie: StandardBorrowingStrategy, StudentBorrowingStrategy, PremiumBorrowingStrategy — të gjitha implementojnë interfejsin IBorrowingStrategy (p.sh. a lejohet huazimi, sa ditë zgjat huazimi).
 
-Relations:
-- Uses CreateBookUseCase
-- Uses GetAllBooksUseCase
+Klasa MemberTypeBorrowingStrategyResolver zgjedh strategjinë e duhur sipas tipit të anëtarit (standard, student, premium). Këto klasa nuk lexojnë direkt nga baza; ato japin rregulla sipas tipit të anëtarit dhe librit.
 
----
+Shtresa e infrastrukturës (implementimi dhe baza)
 
-### MemberController
-Position: top-center
+Depozita e librave (BookRepository), depozita e anëtarëve (MemberRepository), depozita e huazimeve (BorrowRepository) — paraqiten si implementime të interfejsave IBookRepository, IMemberRepository, IBorrowRepository dhe përdorin klientin Supabase për pyetje SQL. BookRepository dhe MemberRepository trashëgojnë nga klasa abstrakte BaseRepository (ndihmë e përbashkët për klientin Supabase dhe emrin e tabelës; përmban metodë abstrakte validate).
 
-Methods:
-- create(input)
-- CreateMemberInput
-- getAll()
-- Member[]
+Shërbimi SupabaseAuthService implementon IAuthService dhe lidh regjistrimin me Supabase Auth dhe me depozitën e anëtarëve ku nevojitet.
 
-Relations:
-- Uses CreateBookUseCase
-- Uses GetAllBooksUseCase
-- Uses BorrowController
+Shtresa e domenit (entitetet dhe kontratat)
 
----
+Entitetet kryesore: Book (identifikues, titull, autor, ISBN, në dispozicion, data krijimi/përditësimi; metoda toJSON për përgjigje API), Member (identifikues, emër, email, tip anëtari, data krijimi/përditësimi; toJSON), BorrowRecord (identifikues, libër, anëtar, data huazimi, afati, data kthimit opsionale; toJSON).
 
-### BorrowController
-Position: top-right
+Interfejsat e kontratës në dosjen domain/interfaces: IBookRepository, IMemberRepository, IBorrowRepository, IBorrowingStrategy, IBorrowingStrategyResolver, IAuthService, IUseCase, plus tipet për listë të faqezuar dhe filtra sipas nevojës.
 
-Methods:
-- borrow(input)
-- BorrowBookInput
-- boolean
+Llojet e marrëdhënieve në diagram (UML)
 
-Relations:
-- Uses GetAllBooksUseCase
+Varësi (shigetë me vija të ndërprera nga kontrolluesi te rasti i përdorimit, ose nga rasti te interfejsi): kontrolluesi përdor rastin; rasti përdor interfejsin e depozitës ose zgjidhësin e strategjisë.
 
----
+Implementim (vijë me trekëndësh bosh): BookRepository implementon IBookRepository; njëjtë për anëtarë dhe huazime; strategjitë implementojnë IBorrowingStrategy; MemberTypeBorrowingStrategyResolver implementon IBorrowingStrategyResolver; SupabaseAuthService implementon IAuthService.
 
-# 2. Use Cases Layer
+Trashëgimia (vijë me trekëndësh të mbushur): BookRepository dhe MemberRepository trashëgojnë nga BaseRepository.
 
-Positioned below Controllers inside a dashed container labeled “Use Cases”.
+Mos vizatoni lidhje trashëgimi direkte nga entiteti Book te BookRepository; lidhja kalon përmes rasteve të përdorimit.
 
-## Interfaces
+Skicë e varësive (orientim vertikal për UML)
 
-### IUseCase<Input, TOutput>
-Position: upper-left in Use Cases section
+Nga lart poshtë: skeda hyrëse e aplikacionit (app.ts) krijon objektet dhe i lidh me konstruktorë.
 
-Method:
-- execute(input): TOutput
+Kontrolluesit HTTP → rastet e përdorimit → interfejsat e depozitës dhe zgjidhësi i strategjisë.
 
----
+Implementimet e depozitës (BookRepository, MemberRepository, BorrowRepository) figurojnë si implementime të interfejsave përkatëse dhe lidhen me klientin Supabase.
 
-### IUseCase<void, Book[] | TOutput>
-Position: upper-right in Use Cases section
+BorrowBookUseCase lidhet me zgjidhësin e strategjisë dhe me tre interfejsat e depozitës (libër, anëtar, huazim) sipas nevojës për një transaksion huazimi.
 
-Method:
-- execute(input): TOutput
+Përmbledhje
 
----
+Diagrami i klasave pasqyron ndarjen: kontrollues të hollë HTTP, raste përdorimi që orkestrojnë, interfejsa domeni për kontrata, implementime në infrastrukturë që flasin me PostgreSQL përmes Supabase, strategji të izoluara për rregulla huazimi, dhe entitete që përfaqësojnë modelin e qëndrueshëm. Kjo përputhet me parimin e inversionit të varësive: rastet varen nga interfejsat, jo nga detajet e bazës.
 
-## Classes
+Përshkrim i përgjithshëm (për tekstin e temës, në vend të versionit të vjetër me BookService dhe BaseLibraryService)
 
-### CreateBookUseCase
-Position: middle-left
+Diagrami i klasave të sistemit të menaxhimit të bibliotekës përfaqëson strukturën e plotë të aplikacionit duke ndarë qartë komponentët sipas shtresave: së pari shtresa e kontrolluesve HTTP, pastaj shtresa e rasteve të përdorimit, më tej shtresa e strategjive të domenit për rregullat e huazimit, shtresa e infrastrukturës me depozitat që shkruajnë dhe lexojnë nga baza përmes Supabase-it, dhe së fundi shtresa e domenit me entitetet dhe interfejsat e kontratës. Diagrami tregon marrëdhëniet midis klasave dhe interfejsave, si dhe lidhjet e trashëgimisë (BookRepository dhe MemberRepository nga BaseRepository) dhe të varësisë (kontrolluesi përdor rastin e përdorimit; rasti përdor interfejsin e depozitës ose zgjidhësin e strategjisë).
 
-Implements:
-- IUseCase<CreateBookInput, boolean>
+Në shtresën e domenit ndodhen entitetet kryesore Book, Member dhe BorrowRecord, që përfaqësojnë modelin e të dhënave në kujtesën e objektit përpara se të përputhen me rreshtat e bazës. Secili entitet ka atribute dhe konstruktorë sipas nevojës; përgjigjet drejt klientit përdorin metodën toJSON me emra fushash të përshtatshëm për API. Në të njëjtën shtresë figurojnë interfejsat e kontratës: IBookRepository, IMemberRepository, IBorrowRepository, IBorrowingStrategy, IBorrowingStrategyResolver, IAuthService dhe IUseCase, të cilët përçojnë kërkesat e rasteve të përdorimit pa lidhur drejtpërdrejt me Supabase.
 
-Methods:
-- validate(book): boolean
-- createBook(book): void
-- findById(id: string): Book | null
-- findAll(): Book[]
+Nuk ka më “shërbime” BookService dhe MemberService që trashëgojnë nga BaseLibraryService; ajo ishte përshkrim i pasaktë. Në vend të tyre, qasja në të dhëna bëhet përmes klasave BookRepository, MemberRepository dhe BorrowRepository, të cilat implementojnë interfejsat përkatëse të domenit. Strategjitë StandardBorrowingStrategy, StudentBorrowingStrategy dhe PremiumBorrowingStrategy implementojnë IBorrowingStrategy dhe përcaktojnë rregulla të ndryshme huazimi; MemberTypeBorrowingStrategyResolver zgjedh strategjinë sipas tipit të anëtarit. Për autentikim, SupabaseAuthService implementon IAuthService dhe lidhet me kontrolluesin e autentikimit.
 
-Relations:
-- Depends on IBookRepository
+Shtresa e rasteve të përdorimit përmban klasat që orkestrojnë veprimet: për librat katër raste, për anëtarët pesë (përfshi historinë e huazimeve të anëtarit), për huazimet dhe raportet gjashtë raste të lidhura me BorrowController. Këto klasa implementojnë IUseCase dhe përdorin interfejsat e depozitës dhe strategjinë. Regjistrimi i anëtarit nëpërmjet AuthController bëhet me SupabaseAuthService sipas IAuthService (në kod nuk ka klasë të veçantë UseCase për signup, por roli është i ngjashëm me orkestrimin e veçantë).
 
----
+Shtresa e kontrolluesve përfaqëson hyrjen HTTP: AuthController, BookController, MemberController dhe BorrowController thërrasin rastet e përdorimit për veprimet që kërkojnë stafi ose anëtari sipas rrugës dhe rolit.
 
-### GetAllBooksUseCase
-Position: middle-right
-
-Implements:
-- IUseCase<void, Book[] | TOutput>
-
-Methods:
-- validate(book: Book): boolean
-- create(member, member): void | null
-- findAll(): Book[]
-- update(book, book): void
-
-Relations:
-- Depends on StandardBorrowingStrategy
-
----
-
-# 3. Interfaces and Service Layer
-
-Positioned below Use Cases.
-
-## Interfaces
-
-### IBookRepository
-Position: left side
-
-Attributes:
-- items: T[]
-
-Methods:
-- validate(item: T): boolean
-- getAll(): T[]
-
-Relations:
-- Connected to BaseLibraryService<T>
-
----
-
-### StandardBorrowingStrategy
-Position: right side
-
-Implements:
-- IBorrowingStrategy
-
-Attributes:
-- items: T[]
-
-Methods:
-- canBorrow(member): boolean
-- getBorrowDuration(): number
-
-Relations:
-- Connected to BaseLibraryService<T>
-
----
-
-### IBorrowingStrategy
-Position: above StandardBorrowingStrategy
-
-Methods:
-- canBorrow(member): boolean
-- getBorrowDuration(): number
-
-Implemented by:
-- StandardBorrowingStrategy
-
----
-
-## Abstract/Base Class
-
-### BaseLibraryService<T>
-Position: center
-
-Attributes:
-- items: T[]
-
-Methods:
-- validate(item: T): boolean
-- getAll(): T[]
-- add(item: T): void
-
-Relations:
-- Inherited/used by:
-  - IBookRepository
-  - StandardBorrowingStrategy
-
----
-
-# 4. Domain Layer
-
-Positioned at the bottom inside a dashed container labeled “Domain”.
-
-## Classes
-
-### Book
-Position: bottom-left
-
-Attributes:
-- id: string
-- title: string
-- author: string
-- isbn: string
-- isAvailable: boolean
-
-Constructor:
-- constructor(id: string, title: string, author: string, isbn: string, isAvailable: boolean)
-
-Relations:
-- Connected to BorrowRecord
-
----
-
-### Member
-Position: bottom-center
-
-Attributes:
-- id: string
-- name: string
-- email: string
-- membership: string
-
-Relations:
-- Connected to BorrowRecord
-
----
-
-### BorrowRecord
-Position: bottom-center below Member
-
-Attributes:
-- id: string
-- bookId: string
-- memberId: string
-- borrowDate: Date
-- dueDate: Date
-
-Constructor:
-- constructor(id: string, bookId: string, memberId: string, borrowDate: Date, dueDate: Date)
-
-Relations:
-- Connected to Book
-- Connected to Member
-
----
-
-# Additional Bottom-Right Interfaces
-
-### IBookRepository
-Position: bottom-right
-
-Methods:
-- create(book: Book): void
-- findById(id: string): Book
-- findAll(): Book[]
-- update(book): void
-
----
-
-### IUseCase<TInput, TOutput>
-Position: bottom-right below IBookRepository
-
-Method:
-- execute(input: TInput): TOutput
-
----
-
-# Relationship Types
-
-## Dependency Relationships
-- Represented using dashed arrows labeled “uses”
-- Controllers depend on Use Cases
-
-## Interface Implementation
-- Represented using dashed lines with hollow triangle arrows
-- CreateBookUseCase implements IUseCase
-- GetAllBooksUseCase implements IUseCase
-- StandardBorrowingStrategy implements IBorrowingStrategy
-
-## Associations
-- Solid lines between domain entities
-- BorrowRecord associated with:
-  - Book
-  - Member
-
-## Generic/Inheritance Style Relations
-- BaseLibraryService<T> acts as a shared generic base/service structure
-
----
-
-# Simplified Structural Layout
-
-Controllers
-- BookController
-- MemberController
-- BorrowController
-
-↓ uses
-
-Use Cases
-- CreateBookUseCase
-- GetAllBooksUseCase
-- IUseCase interfaces
-
-↓ depends on
-
-Interfaces / Services
-- IBookRepository
-- IBorrowingStrategy
-- StandardBorrowingStrategy
-- BaseLibraryService<T>
-
-↓ domain entities
-
-Domain
-- Book
-- Member
-- BorrowRecord
-
- 
-
-Diagrami i klasave i Sistemit të Menaxhimit të Bibliotekës përfaqëson strukturën e plotë të aplikacionit duke ndarë qartë komponentët sipas shtresave: Domain, Services, Use Cases dhe Controllers. Ai tregon marrëdhëniet midis klasave, interface-ve dhe klasave abstrakte, si dhe lidhjet e trashëgimisë dhe përdorimit të varësive. 
-
-Në Shtresën Domain ndodhen entitetet kryesore: Book, Member dhe BorrowRecord, të cilat përfaqësojnë të dhënat bazë të sistemit. Secili entitet ka atributet dhe konstruktorët e nevojshëm për inicializimin e tyre. Në këtë nivel gjenden edhe interface-t IBookRepository, IMemberRepository dhe IBorrowingStrategy që sigurojnë kontratat për shërbimet dhe strategjitë e huazimit, si dhe interface-i i përgjithshëm IUseCase<TInput, TOutput> për rastet e përdorimit. 
-
-Shtresa e Services përfshin klasat që menaxhojnë logjikën e biznesit dhe qasjen në të dhëna. BookService dhe MemberService trashëgojnë nga klasa abstrakte BaseLibraryService<T> dhe implementojnë interface-t përkatëse të repository-ve. Strategjitë e huazimit (StandardBorrowingStrategy, PremiumBorrowingStrategy, StudentBorrowingStrategy) implementojnë IBorrowingStrategy dhe përcaktojnë rregullat e veçanta për huazimin e librave. 
-
-Shtresa e Use Cases përmban klasat që orkestrojnë logjikën e veprimeve të sistemit, si CreateBookUseCase, GetAllBooksUseCase, BorrowBookUseCase dhe ReturnBookUseCase. Këto implementojnë interface-in IUseCase dhe përdorin shërbimet për të realizuar funksionalitetet e kërkuara. 
-
-Shtresa e Controllers përfaqëson hyrjen e sistemit nga përdoruesit. BookController, MemberController dhe BorrowController përdorin rastet e përdorimit për të kryer veprimet e kërkuara nga aktorët (stafi dhe anëtarët). 
-
-Diagrami gjithashtu tregon marrëdhëniet kryesore: 
-
-Inheritance (extends) midis BookService / MemberService dhe BaseLibraryService 
-
-Implementation (implements) për interface-t si repository, use case dhe strategjitë 
-
-Dependency (uses) midis controller-ve dhe use case-ve, si dhe midis use case-ve dhe services/strategjive. 
-
-Ky diagram siguron një pasqyrë të qartë të arkitekturës së sistemit, duke lidhur të dhënat, logjikën e biznesit dhe ndërfaqen për përdoruesin në një model të qëndrueshëm dhe të zgjerueshëm. 
+Marrëdhëniet kryesore janë: varësia midis kontrolluesve dhe rasteve të përdorimit; varësia midis rasteve dhe interfejsave të depozitës ose zgjidhësit të strategjisë; implementimi i interfejsave nga depozitat dhe nga strategjitë; trashëgimia e dy depozitave nga BaseRepository. Diagrami mbetet një pasqyrë e qartë e arkitekturës, duke lidhur të dhënat, logjikën e aplikacionit dhe hyrjen HTTP në një model të qëndrueshëm dhe të zgjerueshëm.
 
  5. Diagramet e Sekuencës (sequence diagrams) 
 
-Diagramat e sekuencës ilustrojnë rrjedhën e mesazheve midis objekteve gjatë ekzekutimit të funksioneve kryesore të sistemit: krijimi i librit dhe huazimi i librit. Ato tregojnë pjesëmarrësit (actors dhe objekte), thirrjet e metodave dhe kthimet e vlerave, duke e bërë të qartë ndërveprimin mes klientit, controller-it, use case-ve dhe services. Kutitë e aktivitetit (activation boxes) tregojnë periudhat gjatë të cilave objektet janë aktive në ekzekutim. 
+Diagramat e sekuencës ilustrojnë rrjedhën e mesazheve midis objekteve gjatë dy veprimeve kryesore: **krijimi i librit** (roli staf) dhe **huazimi i librit** (roli anëtar). Pjesëmarrësit janë klienti (shfletues ose mjet REST), framework-u Fastify, kontrolluesi, rasti i përdorimit, depozita që ekzekuton SQL përmes Supabase, dhe përgjigja HTTP. Në diagram përdoren lifelines me kuti aktivizimi që tregojnë kur secili objekt ekzekuton kod.
 
-5.1 Krijimi i Librit (Create Book Sequence Diagram) 
+5.1 Krijimi i librit (diagrami i sekuencës)
 
-Ky diagram tregon rrjedhën për krijimin e një libri të ri: 
+1. Klienti dërgon kërkesë **HTTP POST** në rrugën `/books` me trup JSON (titull, autor, ISBN) dhe me header **Authorization** me token të përdoruesit me rol **staf** (kërkesa kalon nga middleware i autentikimit dhe i autorizimit para kontrolluesit).
 
-Klienti dërgon kërkesë HTTP POST në endpoint /books. 
+2. **Fastify** e kalon kërkesën te metoda përkatëse e **BookController** (krijim libri).
 
-Fastify merr kërkesën dhe e transmeton te BookController. 
+3. **BookController** lexon të dhënat nga trupi i kërkesës dhe thërret **CreateBookUseCase.execute(input)** me fushat e pranuara.
 
-BookController nxjerr të dhënat e librave nga request.body. 
+4. **CreateBookUseCase** ndërton një instancë të ri të entitetit **Book** (identifikues i ri, fushat nga hyrja, në fillim i disponueshëm) dhe thërret **IBookRepository.create(book)**; në kod implementimi është **BookRepository**, i cili kryen **insert** në Supabase për tabelën e librave.
 
-BookController thërret CreateBookUseCase.execute(). 
+5. Në **sukses**, depozita kthen entitetin **Book**; kontrolluesi përgjigjet me kod **201** dhe trup JSON nga **book.toJSON()**. Në **dështim** (p.sh. gabim nga baza ose rregull biznesi), përgjigjja është **400** (ose **404** ku aplikohet) me mesazh përshkrues.
 
-CreateBookUseCase krijon një objekt Book të ri. 
+5.2 Huazimi i librit (diagrami i sekuencës)
 
-CreateBookUseCase thërret BookService.create(). 
+1. Klienti dërgon **HTTP POST** në `/borrow` me trup **vetëm** `{ bookId }` dhe me token përdoruesi me rol **anëtar**. Identiteti i anëtarit (**memberId**) **nuk** lexohet nga trupi i kërkesës; vendoset nga middleware-i i autentikimit si **request.user.id** pas verifikimit të JWT.
 
-BookService validon librin dhe e shton në sistem. 
+2. **Fastify** e kalon kërkesën te **BorrowController** (metoda e huazimit).
 
-BookService kthen objektin Book tek CreateBookUseCase. 
+3. **BorrowController** thërret **BorrowBookUseCase.execute** me `bookId` nga trupi dhe `memberId` nga përdoruesi i autentikuar.
 
-CreateBookUseCase kthen objektin Book tek BookController. 
+4. **BorrowBookUseCase** lexon librin dhe anëtarin përmes **IBookRepository.findById** dhe **IMemberRepository.findById**. Nëse mungon libri ose anëtari, përfundon me **null** dhe kontrolluesi kthen **400**.
 
-BookController dërgon përgjigje HTTP 201 me librin e krijuar. 
+5. Use case-i merr strategjinë përmes **MemberTypeBorrowingStrategyResolver.resolve(member)** (implementim i **IBorrowingStrategyResolver**), pastaj thërret **canBorrow(member, book)** në strategjinë e zgjedhur. Nëse nuk lejohet huazimi, përfundon me **null** dhe përgjigjja është **400**.
 
- 
+6. Në degën e **suksesit**: llogaritet **dueDate** nga **getBorrowDuration()** i strategjisë; përditësohet libri si i pa disponueshëm përmes **IBookRepository.update**; krijohet rekord **BorrowRecord** dhe ruhet përmes **IBorrowRepository.create**; kontrolluesi kthen **201** me **record.toJSON()**.
 
-5.2 Huazimi i Librit (Borrow Book Sequence Diagram) 
-
-Ky diagram tregon rrjedhën e procesit të huazimit të librit me vendime për sukses ose dështim: 
-
-Klienti dërgon kërkesë HTTP POST në /borrow me bookId dhe memberId. 
-
-Fastify merr kërkesën dhe e kalon te BorrowController. 
-
-BorrowController nxjerr të dhënat nga request.body. 
-
-BorrowController thërret BorrowBookUseCase.execute(). 
-
-BorrowBookUseCase thërret BookService.findById() për të gjetur librin. 
-
-BorrowBookUseCase thërret MemberService.findById() për të gjetur anëtarin. 
-
-BorrowBookUseCase thërret IBorrowingStrategy.canBorrow() për të kontrolluar nëse anëtari mund të huazojë librin. 
-
-Nëse mund të huazohet: 
-
-Thërret IBorrowingStrategy.getBorrowDuration() për të marrë kohëzgjatjen e huazimit. 
-
-Përditëson disponueshmërinë e librit në false. 
-
-Krijon një objekt BorrowRecord me datën e duhur. 
-
-Kthen BorrowRecord tek BorrowController. 
-
-BorrowController kthen përgjigje HTTP 201 me BorrowRecord në rast suksesi ose HTTP 400 me gabim në rast dështimi. 
+7. Mesazhet kthehen nga depozita te rasti i përdorimit, nga rasti te kontrolluesi, dhe nga kontrolluesi te klienti; në diagram fragmenti **alt** mund të ndajë degët e suksesit dhe të dështimit sipas hapit 4–5 dhe 6.
 
  
 
- 
+Diagram 3. Diagramet e sekuencës për krijimin e librit dhe huazimin e librit.
 
-Diagram 3. Diagramet e sekuencës për krijimin e librit dhe huazimin e librit. 
-
-6. Diagrami i Aktivitetit (activity diagram) 
-
-
-# Sequence Diagrams Summary
+# Përmbledhje diagramesh sekuence (anglisht)
 
 ## 1. Create Book Sequence Diagram
 
-### Participants (Left → Right)
-1. Client
-2. Fastify
-3. BookController
-4. CreateBookUseCase
-5. BookService
-6. Book
-
----
+### Participants (left → right)
+Client, Fastify, `BookController`, `CreateBookUseCase`, `BookRepository` (lifeline: implementim i `IBookRepository`), përgjigje HTTP.
 
 ### Flow
-1. Client sends:
-   `POST /books`
+1. Client: `POST /books` me header Authorization (staf).
+2. Fastify → `bookController.create(request, reply)`.
+3. `BookController` lexon trupin, thërret `createBookUseCase.execute(input)`.
+4. `CreateBookUseCase` validon / ndërton entitetin `Book`, thërret `bookRepository.create(...)` (ose ekuivalenti në kod).
+5. `BookRepository` ekzekuton insert në Supabase; kthen entitetin ose hedh gabim.
+6. Controller: `201` me JSON nga `book.toJSON()` ose `400` me mesazh.
 
-2. Fastify calls:
-   `create(request, reply)` on BookController
-
-3. BookController:
-   - extracts input from `request.body`
-   - calls:
-     `CreateBookUseCase.execute(input)`
-
-4. CreateBookUseCase:
-   - creates:
-     `new Book(input.title, input.author, input.isbn)`
-   - calls:
-     `BookService.create`
-
-5. BookService:
-   - validates book
-   - adds book
-   - returns `Book`
-
-6. Controller returns:
-   `201 Created (Book)`
-
----
-
-### Visual Structure
-- Participants arranged horizontally
-- Dashed vertical lifelines
-- Activation bars on:
-  - BookController
-  - CreateBookUseCase
-  - BookService
-- Object creation (`new Book`) appears near Book lifeline
-- Messages flow top → bottom
-- Return arrows flow right → left
+### Vizatim
+Lifelines me aktivizim mbi controller, use case dhe repository; kthimet shfaqen drejt klientit.
 
 ---
 
 ## 2. Borrow Book Sequence Diagram
 
-### Participants (Left → Right)
-1. Client
-2. Fastify
-3. BorrowController
-4. BorrowBookUseCase
-5. BookService
-6. Member
-
----
+### Participants (left → right)
+Client, Fastify, `BorrowController`, `BorrowBookUseCase`, `BookRepository`, `MemberRepository`, `MemberTypeBorrowingStrategyResolver`, `IBorrowingStrategy` (strategjia e zgjedhur), `BorrowRepository`.
 
 ### Flow
-1. Client sends:
-   `POST /borrow (bookId, memberId)`
+1. Client: `POST /borrow` me `{ bookId }` dhe token anëtari.
+2. Middleware (para controller-it) verifikon JWT dhe vendos `request.user.id` si identitet anëtari.
+3. `BorrowController.borrow` → `borrowBookUseCase.execute({ bookId, memberId: request.user.id })`.
+4. `BorrowBookUseCase`: `findById` libër; `findById` anëtar; `strategyResolver.resolve(member)`; `strategy.canBorrow(member, book)`; nëse OK, `getBorrowDuration()`, përditësim libri, `borrowRepository.create` me `dueDate`.
+5. Në degën **sukses**: shkruaj rekord huazimi (`BorrowRepository`), përditëso libër të pa disponueshëm nëse kërkohet nga rregullat; kthe `201` me rekord.
+6. Në degën **dështim** (libri i zënë, limit strategjie, etj.): kthe `400` pa krijuar rekord të ri.
 
-2. Fastify calls:
-   `borrow(request, reply)`
-
-3. BorrowController:
-   - extracts input from request body
-   - calls:
-     `BorrowBookUseCase.execute(input)`
-
-4. BorrowBookUseCase:
-   - calls:
-     `BookService.findById(bookId)`
-   - calls:
-     `MemberService.findById(memberId)`
+### Fragment `alt`
+- **[success]**: mesazhe te repository për insert huazimi + përditësim libri; përgjigje `201`.
+- **[failure]**: dalje herët; përgjigje `400`.
 
 ---
 
-### ALT Conditional Fragment
-
-#### Success Branch
-- call:
-  `borrowingStrategy.canBorrow(member, book)`
-
-- if valid:
-  - calculate duration
-  - call:
-    `borrowingStrategy.getBorrowDuration(...)`
-
-#### Failure Branch
-- create:
-  `new BorrowRecord(book.id, member.id, borrowDate, duration)`
-
-- return:
-  `BorrowRecord`
-
-- controller returns:
-  `400 Bad Request (Error)`
-
----
-
-### Visual Structure
-- Horizontal participant arrangement
-- Dashed lifelines
-- Activation bars on controllers/use cases/services
-- `alt` fragment placed in middle-lower section
-- Success and Failure branches separated inside fragment
-- Sequence flows vertically downward
-
----
-
-# Architectural Pattern Observed
+## Modeli i shtresave (përputhje me kodin)
 
 ```text
-Controller → UseCase → Service → Entity
+Controller → UseCase → (Repository interfaces + Strategy resolver) → Supabase / PostgreSQL
 ```
 
-### SOLID / Design Notes
-- Controllers handle requests only
-- UseCases contain orchestration/business logic
-- Services perform domain operations
-- Entities represent domain models
-- Separation of concerns is clearly applied
-- Aligns mainly with:
-  - SRP (Single Responsibility Principle)
-  - Clean Architecture layering
+Use case-i përmban orkestrimin; repository-t mbajnë SQL/query; strategjitë mbajnë rregulla huazimi pa ditur për Supabase.
+
+---
+
+## 6. Diagrami i Aktivitetit (activity diagram)
 
 
 
@@ -838,7 +443,7 @@ Controller → UseCase → Service → Entity
 
 Diagrami i aktivitetit për procesin e huazimit të librit përfaqëson rrjedhën hap pas hapi nga kërkesa e një anëtari deri tek regjistrimi i suksesit ose dështimit të huazimit. Ai përdor nyja fillestare dhe përfundimtare, aktivitete të shprehura në forma të rrumbullakëta (rounded rectangles), pika vendimi (diamonds) për kontrollin e kushteve, dhe flukse me etiketa “Po”/“Jo”. Opsionalisht mund të përdoren swimlanes për të ndarë përgjegjësitë midis aktorëve dhe sistemit. 
 
-Procesi fillon me kërkesën për huazim dhe përfshin hapat: kërkimin e librit, kontrollin e disponueshmërisë, kërkimin e anëtarit dhe verifikimin e të drejtave të huazimit sipas strategjisë së përcaktuar. Në rast se ndonjë kusht nuk plotësohet (libri nuk ekziston, anëtari nuk ekziston, ose strategjia e huazimit e ndalon), procesi përfundon me gabim. Në rast të suksesit, sistemi llogarit kohëzgjatjen e huazimit, përditëson statusin e librit në “i huazuar”, krijon rekord të ri BorrowRecord dhe kthen këtë rekord si rezultat të suksesshëm. 
+Procesi fillon me kërkesën për huazim (me token të vlefshëm anëtari) dhe përfshin: verifikimin e identitetit, kërkimin e librit, kontrollin e disponueshmërisë, kërkimin e anëtarit dhe verifikimin e të drejtave të huazimit sipas strategjisë së përcaktuar. Në rast se ndonjë kusht nuk plotësohet (libri nuk ekziston, anëtari nuk ekziston, ose strategjia e huazimit e ndalon), procesi përfundon me gabim. Në rast të suksesit, sistemi llogarit kohëzgjatjen e huazimit, përditëson statusin e librit në “i huazuar”, krijon rekord të ri BorrowRecord dhe kthen këtë rekord si rezultat të suksesshëm. 
 
 Ky diagram siguron një vizualizim të qartë të rrjedhës logjike dhe vendimeve kritike gjatë huazimit, duke ndihmuar zhvilluesit dhe përdoruesit teknikë të kuptojnë logjikën e sistemit dhe të ndjekin çdo hap të procesit. 
 
@@ -852,49 +457,21 @@ Diagram 5. Diagrami i aktivitetit të sistemit.
 
 7. Arkitektura dhe parimet e dizajnit 
 
-Sistemi i Menaxhimit të Bibliotekës është zhvilluar mbi një arkitekturë të pastër me shtresa të ndara, e cila ka për qëllim të ndajë qartë përgjegjësitë midis komponentëve të ndryshëm, të minimizojë lidhjet e forta midis tyre, të lehtësojë testimin dhe të sigurojë mundësi të zgjerimit në të ardhmen. Kjo arkitekturë mundëson që secila shtresë të përqendrohet në një aspekt specifik të sistemit dhe që ndryshimet të kryhen me ndikim minimal në pjesët e tjera të kodit. 
+Sistemi i Menaxhimit të Bibliotekës është zhvilluar mbi një arkitekturë të pastër me shtresa të ndara në backend, me një klient React që konsumon API-në dhe Supabase për sesion në shfletues, me qëllim ndarje të qartë përgjegësish, varësi të dobëta, testim më të lehtë dhe zgjerim të kontrolluar. 
 
-7.1. Shtresat Kryesore të Arkitekturës 
+7.1. Shtresat kryesore të arkitekturës 
 
-Application Entry Point (app.ts) 
-Ky është pika hyrëse e aplikacionit. Në këtë shtresë krijohen të gjitha instancat e shërbimeve, use case-ve dhe strategjive të huazimit, të cilat më pas injektohen në controller-e përmes Dependency Injection. Kjo metodë siguron lidhje të dobëta midis komponentëve dhe kontroll të plotë mbi lifecycle-in e objekteve. 
+**Application entry point (`app.ts`)** — Krijohen instancat e repository-ve Supabase, strategjive, resolver-it, use case-ve, controller-ve dhe `SupabaseAuthService`; të gjitha lidhen me konstruktorë (dependency injection).
 
-Controller Layer 
-Controller-et përfaqësojnë hyrjen e sistemit për përdoruesit, duke menaxhuar kërkesat HTTP dhe përgjigjet. Ato nuk përmbajnë logjikë të biznesit, por thjesht orkestrojnë thirrjet te use case-t. 
+**Controller layer** — `AuthController`, `BookController`, `MemberController`, `BorrowController`: lexojnë kërkesën, thërrasin një use case, vendosin kodin HTTP dhe trupin JSON. Autorizimi bëhet me middleware (`authMiddleware`, `requireRole('staff' | 'member')`).
 
-BookController: Menaxhon kërkesat për librat, si krijimi dhe listimi. 
+**Use case layer** — Një klasë për një veprim aplikacioni (`CreateBookUseCase`, `GetAllBooksUseCase`, `UpdateBookUseCase`, `DeleteBookUseCase`, `CreateMemberUseCase`, `GetAllMembersUseCase`, `UpdateMemberUseCase`, `DeleteMemberUseCase`, `GetMemberBorrowHistoryUseCase`, `BorrowBookUseCase`, `ReturnBookUseCase`, `GetAllBorrowsUseCase`, `GetMyActiveBorrowsUseCase`, `GetMyBorrowHistoryUseCase`, `GetMemberLoanPeriodUseCase`). Secila implementon `IUseCase` dhe merr në konstruktor vetëm interface-e repository-je ose resolver strategjie, jo klient Supabase drejtpërdrejt.
 
-MemberController: Menaxhon kërkesat për anëtarët e bibliotekës. 
+**Infrastructure layer** — `BookRepository`, `MemberRepository`, `BorrowRepository` implementojnë kontratat e domenit dhe përdorin `@supabase/supabase-js`. `SupabaseAuthService` lidh token-in me anëtarin në bazë.
 
-BorrowController: Menaxhon proceset e huazimit dhe kthimit të librave. 
+**Services (strategji)** — `StandardBorrowingStrategy`, `StudentBorrowingStrategy`, `PremiumBorrowingStrategy` dhe `MemberTypeBorrowingStrategyResolver`: polimorfizëm për rregulla huazimi; nuk zëvendësojnë repository-t.
 
-Use Case Layer 
-Kjo shtresë orkestron logjikën e biznesit duke kombinuar shërbime dhe strategji për të realizuar funksionalitete specifike. 
-
-CreateBookUseCase, GetAllBooksUseCase 
-
-CreateMemberUseCase, GetAllMembersUseCase 
-
-BorrowBookUseCase, ReturnBookUseCase 
-Çdo use case implementon interface-in IUseCase<TInput, TOutput> dhe përmban metodën execute, duke siguruar që çdo veprim biznesi të jetë i qartë dhe i izoluar. 
-
-Service Layer 
-Kjo shtresë përmban logjikën e biznesit që mund të ripërdoret dhe menaxhimin e të dhënave: 
-
-BookService dhe MemberService për menaxhimin e entiteteve. 
-
-Strategjitë e huazimit (StandardBorrowingStrategy, PremiumBorrowingStrategy, StudentBorrowingStrategy) përcaktojnë rregullat për huazimin. 
-Klasat trashëgojnë nga BaseLibraryService<T> dhe implementojnë interface-t e repository-ve për të siguruar kontrata të qarta dhe standarde përdorimi. 
-
-Domain Layer 
-Kjo është shtresa më themelore që përfshin entitetet, interface-t dhe klasat abstrakte: 
-
-Entities: Book, Member, BorrowRecord përfaqësojnë të dhënat kryesore të sistemit dhe atributet e tyre. 
-
-Interface: IBookRepository, IMemberRepository, IBorrowingStrategy, IUseCase<TInput, TOutput> përcaktojnë kontratat që duhet të respektohen nga shërbimet dhe use case-t. 
-
-Abstract Classes: BaseLibraryService<T> ofron strukturë bazë për shërbimet, duke përfshirë metodat e përbashkëta si getAll dhe add dhe metodën abstrakte validate që kërkon implementim specifik në klasat trashëguese. 
-
+**Domain layer** — Entitetet `Book`, `Member`, `BorrowRecord` dhe interface-et në `domain/interfaces/` (përfshi `IBorrowRepository` për huazime, raport dhe histori të faqezuar).
  
 
  
@@ -907,27 +484,17 @@ Abstract Classes: BaseLibraryService<T> ofron strukturë bazë për shërbimet, 
 
  
 
-7.2 Parimet e Programimit Orientuar në Objekte (OOP) 
+7.2 Parimet e programimit të orientuar në objekt (OOP) 
 
-Arkitektura demonstron përdorimin e të gjitha parimeve kryesore të OOP, duke e bërë sistemin modular, fleksibël dhe të ripërdorshëm. 
+**Abstraksion** — Interface-et e repository-ve dhe `IBorrowingStrategy` fshehin implementimin Supabase / SQL.
 
-Abstraksioni 
-Klasat abstrakte dhe interface-t ofrojnë një përfaqësim të përgjithshëm të komponentëve, duke fshehur detajet e implementimit. Për shembull, BaseLibraryService<T> përcakton një metodë abstrakte validate() dhe struktura e përgjithshme për menaxhimin e entiteteve. 
+**Trashëgimia** — Strategjitë e ndryshme të huazimit ndajnë sjellje të përbashkëta përmes kontratës së njëjtë; nuk përdoret `BaseLibraryService` në kodin aktual.
 
-Trashëgimia 
-BookService dhe MemberService trashëgojnë nga BaseLibraryService, duke marrë funksionalitetin e përgjithshëm dhe duke implementuar metodat abstrakte sipas nevojës për secilin entitet. 
+**Polimorfizëm** — `MemberTypeBorrowingStrategyResolver` kthen strategji sipas `MemberType`; `BorrowBookUseCase` punon me `IBorrowingStrategy` pa ditur klasën konkrete.
 
-Polimorfizmi 
-Strategjitë e huazimit implementojnë IBorrowingStrategy. Use case-i BorrowBookUseCase përdor interface-in pa e ditur tipin konkret të strategjisë, duke mundësuar ndryshim dinamik të sjelljes së huazimit. 
+**Encapsulation** — Entitetet mbajnë fushat dhe metoda si `toJSON()` për dalje të kontrolluar API.
 
-Mbishkrimi i Metodave (Overriding) 
-Metoda validate() në BookService dhe MemberService mbishkruhet për të aplikuar logjikë specifike për secilin entitet. 
-
-Mbingarkimi i Metodave (Overloading) 
-BookService.findById() ka dy nënshkrime për fleksibilitet: me një parametër (id) ose me dy parametra (id dhe title). 
-
-Interface-t 
-Interface-t ofrojnë kontrata të qarta për shërbimet dhe use case-t, duke lehtësuar zgjerimin dhe testimin e sistemit. 
+**Interface-t** — `IUseCase`, repository interface-et dhe strategjia lidhin komponentët me kontrata të qarta për testim dhe zgjerim. 
 
  
 
@@ -942,376 +509,40 @@ Interface-t ofrojnë kontrata të qarta për shërbimet dhe use case-t, duke leh
 Diagrami 6. Dizajni i Arkitekturës me shtresa të sistemit. 
 
 
-# Layered Architecture Diagram Summary
+# Përshkrim i Diagramit 6 — shtresa (për veglë UML)
 
-# Diagram Type
+Diagrami horizontal me katër bllokë kryesorë: **Application (`app.ts`)**, **Controllers dhe middleware autentikimi**, **Use cases dhe strategji huazimi**, **Repositories Supabase dhe entitete domeni**.
+
+Zinxhiri i varësisë për vizatim:
+
 ```text
-Layered Architecture / Clean Architecture Diagram
+app.ts
+  → Controllers (AuthController, BookController, MemberController, BorrowController)
+      → Use cases (lista në seksionin 7.1)
+          → IBookRepository / IMemberRepository / IBorrowRepository
+                (BookRepository, MemberRepository, BorrowRepository)
+          → MemberTypeBorrowingStrategyResolver → IBorrowingStrategy
 ```
+
+**SRP** — Controllers pa logjikë biznesi; një use case për një veprim aplikacioni; repository për qasje në të dhëna; strategji vetëm për rregulla huazimi.
+
+**DIP** — Use case-et varen nga interface-et; klasat konkrete të repository-ve krijohen në `app.ts`.
+
+**OCP** — Strategji të reja huazimi regjistrohen në resolver pa ndryshuar kodin ekzistues të use case-it të huazimit, për sa kohë kontrata `IBorrowingStrategy` mbahet.
+
+Shënim: përshkrimi i mëparshëm me BookService, lidhje të gabuara controller–use case dhe emra strategjish të pavërtetë nuk duhet kopjuar në diagram; u zëvendësua me këtë përmbledhje që përputhet me repozitorin.
 
 ---
-
-# Overall Vertical Structure
-
-The diagram is organized vertically from top → bottom into 5 layers:
-
-```text
-1. Application Entry Point
-2. Controller Layer
-3. Use Case Layer
-4. Service Layer
-5. Domain Layer
-```
-
-Each layer is represented as a large colored horizontal container.
-
----
-
-# 1. Application Entry Point Layer
-
-## Position
-- Topmost layer
-- Large blue container
-
-## Component
-```text
-Application Entry Point
-```
-
-## Relations
-Connected downward to:
-- BookController
-- MemberController
-- BorrowController
-
-Connections are direct arrows from the entry point toward controllers.
-
----
-
-# 2. Controller Layer
-
-## Position
-- Below Application Entry Point
-- Green container
-
-## Components (Left → Right)
-```text
-BookController
-MemberController
-BorrowController
-```
-
----
-
-## Relations to Use Cases
-
-### BookController
-Connected to:
-```text
-CreateBookUseCase
-```
-
-### MemberController
-Connected to:
-```text
-GetAllBooksUseCase
-BorrowBookUseCase
-```
-
-### BorrowController
-Connected to:
-```text
-CreateMemberUseCase
-ReturnBookUseCase
-```
-
-Arrows point downward from controllers to use cases.
-
----
-
-# 3. Use Case Layer
-
-## Position
-- Middle section
-- Purple container
-
-## Components Layout
-
-### Top Row
-```text
-CreateBookUseCase
-GetAllBooksUseCase
-CreateMemberUseCase
-```
-
-### Bottom Row
-```text
-GetAllMembersUseCase
-BorrowBookUseCase
-ReturnBookUseCase
-```
-
----
-
-## Internal Structure
-- Use cases are evenly distributed horizontally.
-- Vertical arrows connect related use cases and services.
-
----
-
-# Relations to Services
-
-### CreateBookUseCase
-↓
-```text
-BookService
-```
-
-### BorrowBookUseCase
-↓
-```text
-MemberService
-```
-
-### ReturnBookUseCase
-↓
-```text
-BorrowingStrategy
-```
-
-Connections are direct downward arrows.
-
----
-
-# 4. Service Layer
-
-## Position
-- Below Use Case Layer
-- Pink/Purple container
-
-## Components (Left → Right)
-
-```text
-BookService
-MemberService
-BorrowingStrategy
-```
-
----
-
-# BorrowingStrategy Internal Structure
-
-Contains two strategy implementations:
-
-```text
-FirstComeFirstServeBorrowingStrategy
-PriorityMemberBorrowingStrategy
-```
-
-These appear stacked vertically inside the strategy component.
-
----
-
-# Service Relations
-
-### BookService
-Connected downward to:
-```text
-Book
-```
-
-### MemberService
-Connected downward to:
-```text
-Member
-```
-
-### BorrowingStrategy
-Connected downward to:
-```text
-BorrowingRecord
-iBookRepository
-iMemberRepository
-```
-
-Some relations use:
-- dashed arrows
-- dependency-style connectors
-
----
-
-# 5. Domain Layer
-
-## Position
-- Bottom layer
-- Orange container
-
-## Components (Left → Right)
-
-```text
-Book
-Member
-BorrowingRecord
-iBookRepository
-iMemberRepository
-```
-
----
-
-# Domain Layer Structure
-
-### Entities
-```text
-Book
-Member
-BorrowingRecord
-```
-
-### Repository Interfaces
-```text
-iBookRepository
-iMemberRepository
-```
-
-Repositories are positioned toward the right side.
-
----
-
-# Relationship Types
-
-## Direct Dependency
-Represented using:
-```text
-solid arrows
-```
-
-Used between:
-- Controllers → UseCases
-- UseCases → Services
-- Services → Domain entities
-
----
-
-## Interface / Abstraction Dependency
-Represented using:
-```text
-dashed arrows
-```
-
-Used mainly around:
-- repositories
-- strategy dependencies
-
----
-
-# Visual Layout Summary
-
-## Layer Styling
-- Each layer uses a different background color.
-- Components are small rounded rectangles.
-- Layers are full-width horizontal sections.
-
----
-
-## Flow Direction
-Architecture dependency direction:
-```text
-Top → Bottom
-```
-
----
-
-# Architectural Pattern
-
-## Clean Architecture Style
-```text
-Entry Point
-    ↓
-Controllers
-    ↓
-Use Cases
-    ↓
-Services
-    ↓
-Domain
-```
-
----
-
-# SOLID Principles Reflected
-
-## Single Responsibility Principle (SRP)
-- Controllers only manage requests.
-- UseCases handle application logic.
-- Services contain operational/domain services.
-- Domain layer contains entities/interfaces only.
-
----
-
-## Dependency Inversion Principle (DIP)
-- Use of:
-  ```text
-  iBookRepository
-  iMemberRepository
-  ```
-  indicates dependency on abstractions instead of concrete implementations.
-
----
-
-## Open/Closed Principle (OCP)
-- `BorrowingStrategy`
-  supports multiple interchangeable strategies:
-  ```text
-  FirstComeFirstServeBorrowingStrategy
-  PriorityMemberBorrowingStrategy
-  ```
-
----
-
-# Positioning Summary
-
-## Horizontal Distribution
-```text
-Controllers
-UseCases
-Services
-Domain Objects
-```
-are aligned horizontally within their own layers.
-
----
-
-## Vertical Dependency Chain
-Typical dependency path:
-```text
-Application Entry Point
-    ↓
-Controller
-    ↓
-UseCase
-    ↓
-Service
-    ↓
-Domain Entity / Repository
-```
 
 Implementimi dhe përdorimi 
 
-Sistemi është dizajnuar sipas parimeve të Clean Architecture dhe Dependency Inversion, ku çdo shtresë ka përgjegjësi të qarta dhe varësitë rrjedhin nga jashtmi në brendësi, duke siguruar modularitet, testueshmëri dhe mirëmbajtje të lehtë. 
+Sistemi është dizajnuar sipas parimeve të Clean Architecture dhe Dependency Inversion: controller-et janë të hollë, use case-et orkestrojnë, repository-t izolojnë Supabase/PostgreSQL, strategjitë izolojnë rregullat e huazimit. Ruajtja është **reale** në Supabase; nuk përdoren koleksione në memorie.
 
-BookService trashëgon nga BaseLibraryService<Book> dhe implementon IBookRepository. Ai siguron validimin e të dhënave për titull, autor, vit botimi, kopje dhe ISBN, dhe mbështet kërkime specifike si findByAuthor() dhe mbi-ngarkim të metodës findById(). 
+**Strategjia e huazimit** (`StandardBorrowingStrategy`, `StudentBorrowingStrategy`, `PremiumBorrowingStrategy`) zgjidhet nga `MemberTypeBorrowingStrategyResolver` sipas `memberType`. **BorrowBookUseCase** kombinon repository-t dhe strategjinë pa ekspozuar SQL te controller-i.
 
-Për huazimin e librave përdoret Strategy Pattern, ku strategjitë si PremiumBorrowingStrategy përcaktojnë rregullat e huazimit dhe gjobat për vonesat, duke mundësuar ndryshim fleksibël sipas tipit të anëtarit. Use case-t si BorrowBookUseCase orkestrojnë logjikën duke injektuar varësitë dhe duke aplikuar rregullat e strategjisë, duke siguruar izolim të logjikës së biznesit dhe përgjegjësi të qarta për secilin komponent. 
+**Përfitimet kryesore:** modularitet (shtresa të ndara), testueshmëri më e lehtë (mock i interface-ve), ndryshime të fokusuara (p.sh. rregullat e huazimit vetëm në strategji), dhe zgjerim i ardhshëm përmes repository-ve ose migrimeve SQL pa prishur use case-et.
 
-Përfitimet kryesore: 
-
-Modularitet i lartë: shtimi i funksionaliteteve bëhet pa ndërhyrje në kod ekzistues. 
-
-Testueshmëri e thjeshtë: secila shtresë testohet veç e veç. 
-
-Mirëmbajtje minimale: ndryshimet në rregulla prekin vetëm një vend. 
-
-Zgjerueshmëri: kalimi në databaza si MongoDB ose PostgreSQL kërkon vetëm ndryshim të repository-ve. 
+Zgjerueshmëria nuk kërkon “kalim nga memorie në PostgreSQL” — sistemi është tashmë në PostgreSQL; ndryshime të mundshme në të ardhmen (p.sh. lexim nga read replica) mbeten të kufizuara në shtresën e repository-ve. 
 
  
 
@@ -1325,13 +556,11 @@ Zgjerueshmëri: kalimi në databaza si MongoDB ose PostgreSQL kërkon vetëm ndr
 
 Konkluzioni 
 
-Sistemi i menaxhimit të bibliotekës përfaqëson një zbatim të qartë të parimeve të Clean Architecture, SOLID dhe Dependency Inversion, duke siguruar që çdo shtresë të ketë përgjegjësi të qartë dhe që varësitë të rrjedhin nga jashtmi në brendësi. Kjo qasje lejon modularitet të lartë, mirëmbajtje të lehtë dhe testueshmëri të pavarur për secilën komponentë. 
+Sistemi i menaxhimit të bibliotekës përfaqëson një zbatim të qartë të parimeve të Clean Architecture, SOLID dhe Dependency Inversion mbi një stack modern: **API Fastify + TypeScript**, **klient React**, **Supabase (Auth + PostgreSQL)**. Qasja në të dhëna kalon përmes repository-ve; rregullat e huazimit përmes strategjive dhe resolver-it; përgjigjet API përdorin entitete me `toJSON()` për fusha të qëndrueshme.
 
-Komponentët kryesorë, si BookService, ofrojnë validim të të dhënave dhe kërkime fleksibël, ndërsa përdorimi i Strategy Pattern për huazimin e librave siguron që rregullat e biznesit të jenë të ndryshueshme dinamiskisht sipas tipit të anëtarit. Use case-t, si BorrowBookUseCase, orkestrojnë logjikën duke injektuar varësitë dhe duke aplikuar rregullat specifike, duke mbajtur çdo pjesë të sistemit të izoluar dhe me përgjegjësi të vetme. 
+Use case-et si `BorrowBookUseCase` dhe `GetMyBorrowHistoryUseCase` mbajnë orkestrimin pa u përzier me detajet e Supabase-it në controller. Frontend-i përdor TanStack Query për cache dhe mbrojtje rrugësh me `beforeLoad` sipas rolit.
 
-Ky model e bën sistemin të qëndrueshëm, i testueshëm dhe i zgjerueshëm, duke mundësuar lehtësisht shtimin e funksionaliteteve të reja si kategori librash, rezervime, raportime dhe integrime me API të jashtme, pa ndërhyrë në kodin ekzistues. Përfitimet kryesore përfshijnë modularitet të lartë, mirëmbajtje minimale, testueshmëri të thjeshtë dhe zgjerueshmëri të lehtë, duke e bërë projektin një bazë solide për zhvillime dhe përdorim afatgjatë. 
-
-Në përmbledhje, ky sistem tregon një balancë të fortë mes simplicitetit, fleksibilitetit dhe rigorozitetit të arkitekturës, duke krijuar një platformë të qëndrueshme dhe të gatshme për zgjerime të ardhshme dhe nevoja reale operative të bibliotekës. 
+Ky model e bën sistemin të qëndrueshëm për përdorim real dhe të gatshëm për zgjerime (p.sh. njoftime afati, eksport raportesh) kryesisht përmes shtresës së repository-ve dhe use case-ve të reja, pa prishur kontratat ekzistuese të API-së. 
 
  
  
