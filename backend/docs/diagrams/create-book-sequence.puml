@@ -1,4 +1,5 @@
 @startuml Krijimi_i_librit_POST_books
+!pragma layout smetana
 title Krijimi i librit (POST /books) — staf
 
 actor "Klienti" as K

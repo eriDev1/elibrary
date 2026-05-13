@@ -506,31 +506,13 @@ Sistemi i Menaxhimit të Bibliotekës është zhvilluar mbi një arkitekturë t�
 
  
 
-Diagrami 6. Dizajni i Arkitekturës me shtresa të sistemit. 
+Diagrami 6. Dizajni i arkitekturës me shtresa të sistemit.
 
+Figura e gatshme për dokument: `backend/docs/diagrams/arkitektura-shtresa.png`. Burimi për ndryshime: `backend/docs/diagrams/arkitektura-shtresa.puml`. Në skedar përdoret `!pragma layout smetana` që PlantUML të vizatojë pa **Graphviz** (`dot`); përndryshe mjeti kërkon `dot` të instaluar dhe mund të prodhojë vetëm faqe gabimi në vend të diagramit.
 
-# Përshkrim i Diagramit 6 — shtresa (për veglë UML)
+Diagrami përshkruan rrjedhën vertikale nga klienti deri te baza: kërkesat me HTTP/JSON arrijnë te Fastify dhe **REST API routes**, kalojnë nga middleware-i i JWT-së dhe i rolit (`staf` / `anëtar`) te **Controllers** (`AuthController`, `BookController`, `MemberController`, `BorrowController`), pastaj te rastet e përdorimit. Teksti në shtresën e biznesit thekson huazimin: `MemberTypeBorrowingStrategyResolver` dhe strategjitë Standard / Student / Premium bashkë me rastet e përdorimit. Më poshtë janë **entitetet dhe interfacet** e domenit, pastaj infrastruktura (`BookRepository`, `MemberRepository`, `BorrowRepository`, `SupabaseAuthService`) dhe PostgreSQL përmes Supabase-it. Lidhja e instancave bëhet në `app.ts` me konstruktorë (**dependency injection**), që rastet e përdorimit të mbështeten në **lidhjet** që përcakton domeni, jo në klientin e drejtpërdrejtë të Supabase-it.
 
-Diagrami horizontal me katër bllokë kryesorë: **Application (`app.ts`)**, **Controllers dhe middleware autentikimi**, **Use cases dhe strategji huazimi**, **Repositories Supabase dhe entitete domeni**.
-
-Zinxhiri i varësisë për vizatim:
-
-```text
-app.ts
-  → Controllers (AuthController, BookController, MemberController, BorrowController)
-      → Use cases (lista në seksionin 7.1)
-          → IBookRepository / IMemberRepository / IBorrowRepository
-                (BookRepository, MemberRepository, BorrowRepository)
-          → MemberTypeBorrowingStrategyResolver → IBorrowingStrategy
-```
-
-**SRP** — Controllers pa logjikë biznesi; një use case për një veprim aplikacioni; repository për qasje në të dhëna; strategji vetëm për rregulla huazimi.
-
-**DIP** — Use case-et varen nga interface-et; klasat konkrete të repository-ve krijohen në `app.ts`.
-
-**OCP** — Strategji të reja huazimi regjistrohen në resolver pa ndryshuar kodin ekzistues të use case-it të huazimit, për sa kohë kontrata `IBorrowingStrategy` mbahet.
-
-Shënim: përshkrimi i mëparshëm me BookService, lidhje të gabuara controller–use case dhe emra strategjish të pavërtetë nuk duhet kopjuar në diagram; u zëvendësua me këtë përmbledhje që përputhet me repozitorin.
+**SRP** — Controllers mbajnë kërkesën dhe përgjigjen; biznesi te rastet e përdorimit; ruajtja te repository-t; strategjitë vetëm për rregullat e huazimit. **DIP** — implementimet konkrete krijohen në `app.ts`. **OCP** — strategji të reja huazimi mund të lidhen përmes resolver-it pa thyer `IBorrowingStrategy`.
 
 ---
 

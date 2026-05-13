@@ -342,28 +342,13 @@ Encapsulation — Entitetet mbajnë fushat dhe metoda si toJSON() për dalje të
 Interface-t — IUseCase, repository interface-et dhe strategjia lidhin komponentët me kontrata të qarta për testim dhe zgjerim.
 
 
-Diagrami 6. Dizajni i Arkitekturës me shtresa të sistemit.
+Diagrami 6. Dizajni i arkitekturës me shtresa të sistemit.
 
-Përshkrim i Diagramit 6 — shtresa (për veglë UML)
+Figura për Word: backend/docs/diagrams/arkitektura-shtresa.png. Burimi: backend/docs/diagrams/arkitektura-shtresa.puml. Në skedar përdoret pragma layout smetana që PlantUML të vizatojë pa Graphviz (dot); pa këtë ose pa dot të instaluar, dalja mund të jetë faqe gabimi në vend të diagramit.
 
-Diagrami horizontal me katër bllokë kryesorë: Application (app.ts), Controllers dhe middleware autentikimi, Use cases dhe strategji huazimi, Repositories Supabase dhe entitete domeni.
+Diagrami tregon rrjedhën nga klienti deri te baza: HTTP/JSON te Fastify dhe REST API routes, middleware JWT dhe rol (staf ose anëtar), Controllers (AuthController, BookController, MemberController, BorrowController), rastet e përdorimit me theks te huazimi MemberTypeBorrowingStrategyResolver dhe strategjitë Standard Student Premium, pastaj domeni me entitetet dhe interfacet, infrastruktura repository Supabase dhe SupabaseAuthService, PostgreSQL përmes Supabase. Instancat lidhen në app.ts me dependency injection; rastet e përdorimit përdorin lidhjet që përcakton domeni.
 
-Zinxhiri i varësisë për vizatim:
-
-app.ts
-  → Controllers (AuthController, BookController, MemberController, BorrowController)
-      → Use cases (lista në seksionin 7.1)
-          → IBookRepository / IMemberRepository / IBorrowRepository
-                (BookRepository, MemberRepository, BorrowRepository)
-          → MemberTypeBorrowingStrategyResolver → IBorrowingStrategy
-
-SRP — Controllers pa logjikë biznesi; një use case për një veprim aplikacioni; repository për qasje në të dhëna; strategji vetëm për rregulla huazimi.
-
-DIP — Use case-et varen nga interface-et; klasat konkrete të repository-ve krijohen në app.ts.
-
-OCP — Strategji të reja huazimi regjistrohen në resolver pa ndryshuar kodin ekzistues të use case-it të huazimit, për sa kohë kontrata IBorrowingStrategy mbahet.
-
-Shënim: përshkrimi i mëparshëm me BookService, lidhje të gabuara controller–use case dhe emra strategjish të pavërtetë nuk duhet kopjuar në diagram; u zëvendësua me këtë përmbledhje që përputhet me repozitorin.
+SRP: Controllers vetëm kërkesë përgjigje; biznesi te use case; ruajtja te repository; strategjitë për rregullat e huazimit. DIP: konkretizimet në app.ts. OCP: strategji të reja përmes resolver-it pa thyer IBorrowingStrategy.
 
 
 Implementimi dhe përdorimi
