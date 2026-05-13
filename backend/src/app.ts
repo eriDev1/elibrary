@@ -3,9 +3,9 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 
 import { getSupabaseClient } from './infrastructure/supabase/supabaseClient';
-import { SupabaseBookRepository } from './infrastructure/repositories/SupabaseBookRepository';
-import { SupabaseMemberRepository } from './infrastructure/repositories/SupabaseMemberRepository';
-import { SupabaseBorrowRepository } from './infrastructure/repositories/SupabaseBorrowRepository';
+import { BookRepository } from './infrastructure/repositories/BookRepository';
+import { MemberRepository } from './infrastructure/repositories/MemberRepository';
+import { BorrowRepository } from './infrastructure/repositories/BorrowRepository';
 import { SupabaseAuthService } from './infrastructure/auth/SupabaseAuthService';
 
 import { CreateBookUseCase } from './usecases/CreateBookUseCase';
@@ -40,9 +40,9 @@ const fastify = Fastify({ logger: true });
 
 const supabase = getSupabaseClient();
 
-const bookRepository = new SupabaseBookRepository(supabase);
-const memberRepository = new SupabaseMemberRepository(supabase);
-const borrowRepository = new SupabaseBorrowRepository(supabase);
+const bookRepository = new BookRepository(supabase);
+const memberRepository = new MemberRepository(supabase);
+const borrowRepository = new BorrowRepository(supabase);
 const authService = new SupabaseAuthService(supabase, memberRepository);
 
 const borrowingStrategyResolver = new MemberTypeBorrowingStrategyResolver(

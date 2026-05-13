@@ -1,11 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ColumnDef, PaginationState } from '@tanstack/react-table'
 import { BookOpen, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { api } from '#/lib/api'
 import { queryKeys } from '#/lib/queryKeys'
 import { useSessionQuery } from '#/lib/sessionQuery'
 import type { Book } from '#/lib/types'
+import type { PaginatedResponse } from '#/types/api'
+import { DataTable } from '#/components/DataTable'
 import { Modal } from '#/components/Modal'
 import { ConfirmDialog } from '#/components/ConfirmDialog'
 import { BookForm, type BookFormValues } from '#/components/BookForm'
@@ -19,13 +22,27 @@ function BooksPage() {
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<Book | null>(null)
   const [deleting, setDeleting] = useState<Book | null>(null)
 
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
+  }, [search])
+
   const booksQuery = useQuery({
-    queryKey: queryKeys.books(search),
-    queryFn: () => api.get<Book[]>(`/books?search=${encodeURIComponent(search)}`),
+    queryKey: queryKeys.books(search, pagination.pageIndex, pagination.pageSize),
+    queryFn: () => {
+      const p = new URLSearchParams()
+      p.set('page', String(pagination.pageIndex + 1))
+      p.set('page_size', String(pagination.pageSize))
+      if (search) p.set('search', search)
+      return api.get<PaginatedResponse<Book>>(`/books?${p.toString()}`)
+    },
   })
 
   function invalidateBooks() {
@@ -61,7 +78,74 @@ function BooksPage() {
     },
   })
 
-  const books = booksQuery.data ?? []
+  const list = booksQuery.data
+  const rows = list?.items ?? []
+  const total = list?.total ?? 0
+
+  const columns = useMemo<ColumnDef<Book>[]>(() => {
+    const cols: ColumnDef<Book>[] = [
+      {
+        accessorKey: 'title',
+        header: 'Title',
+        cell: ({ getValue }) => (
+          <span className="font-medium text-gray-900">{getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: 'author',
+        header: 'Author',
+        cell: ({ getValue }) => <span className="text-gray-600">{getValue<string>()}</span>,
+      },
+      {
+        accessorKey: 'isbn',
+        header: 'ISBN',
+        cell: ({ getValue }) => (
+          <span className="text-gray-500 font-mono text-xs">{getValue<string>()}</span>
+        ),
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => <StatusBadge available={row.original.is_available} />,
+      },
+      {
+        accessorKey: 'created_at',
+        header: 'Added',
+        cell: ({ getValue }) => (
+          <span className="text-xs text-gray-500">
+            {new Date(getValue<string>()).toLocaleDateString()}
+          </span>
+        ),
+      },
+    ]
+    if (role === 'staff') {
+      cols.push({
+        id: 'actions',
+        header: () => null,
+        cell: ({ row }) => (
+          <div className="text-right whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => setEditing(row.original)}
+              className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50 mr-1"
+              title="Edit"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleting(row.original)}
+              className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
+              title="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ),
+      })
+    }
+    return cols
+  }, [role])
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -69,10 +153,11 @@ function BooksPage() {
         <div className="flex items-center gap-2">
           <BookOpen className="text-indigo-600" size={22} />
           <h1 className="text-2xl font-bold text-gray-900">Books</h1>
-          <span className="text-sm text-gray-400 ml-1">({books.length})</span>
+          <span className="text-sm text-gray-400 ml-1">({total})</span>
         </div>
         {role === 'staff' && (
           <button
+            type="button"
             onClick={() => setCreateOpen(true)}
             className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
           >
@@ -101,67 +186,17 @@ function BooksPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-            <tr>
-              <th className="px-4 py-3 text-left">Title</th>
-              <th className="px-4 py-3 text-left">Author</th>
-              <th className="px-4 py-3 text-left">ISBN</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-left">Added</th>
-              {role === 'staff' && <th className="px-4 py-3"></th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {booksQuery.isPending ? (
-              <tr>
-                <td colSpan={role === 'staff' ? 6 : 5} className="px-4 py-8 text-center text-gray-400">
-                  Loading…
-                </td>
-              </tr>
-            ) : books.length === 0 ? (
-              <tr>
-                <td colSpan={role === 'staff' ? 6 : 5} className="px-4 py-8 text-center text-gray-400">
-                  No books match your search
-                </td>
-              </tr>
-            ) : (
-              books.map((book) => (
-                <tr key={book.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{book.title}</td>
-                  <td className="px-4 py-3 text-gray-600">{book.author}</td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{book.isbn}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge available={book.is_available} />
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {new Date(book.created_at).toLocaleDateString()}
-                  </td>
-                  {role === 'staff' && (
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setEditing(book)}
-                        className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50 mr-1"
-                        title="Edit"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => setDeleting(book)}
-                        className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<Book>
+        data={rows}
+        columns={columns}
+        getRowId={(b) => b.id}
+        isPending={booksQuery.isPending}
+        emptyMessage="No books match your search"
+        resetPageKey={search}
+        rowCount={total}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+      />
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="New book">
         <BookForm

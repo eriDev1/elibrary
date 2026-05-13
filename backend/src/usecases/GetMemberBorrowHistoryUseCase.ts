@@ -4,13 +4,16 @@ import {
   IBorrowRepository,
   MemberBorrowHistoryEntry,
 } from '../domain/interfaces/IBorrowRepository';
+import { PagedList } from '../domain/PagedList';
 
 export interface GetMemberBorrowHistoryInput {
   memberId: string;
+  page: number;
+  pageSize: number;
 }
 
 export class GetMemberBorrowHistoryUseCase
-  implements IUseCase<GetMemberBorrowHistoryInput, Promise<MemberBorrowHistoryEntry[] | null>>
+  implements IUseCase<GetMemberBorrowHistoryInput, Promise<PagedList<MemberBorrowHistoryEntry> | null>>
 {
   constructor(
     private memberRepository: IMemberRepository,
@@ -19,11 +22,14 @@ export class GetMemberBorrowHistoryUseCase
 
   async execute(
     input: GetMemberBorrowHistoryInput
-  ): Promise<MemberBorrowHistoryEntry[] | null> {
+  ): Promise<PagedList<MemberBorrowHistoryEntry> | null> {
     const member = await this.memberRepository.findById(input.memberId);
     if (!member) {
       return null;
     }
-    return this.borrowRepository.findBorrowHistoryForMember(input.memberId);
+    return this.borrowRepository.findBorrowHistoryForMember(input.memberId, {
+      page: input.page,
+      pageSize: input.pageSize,
+    });
   }
 }

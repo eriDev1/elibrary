@@ -1,4 +1,10 @@
 import { BorrowRecord } from '../entities/BorrowRecord';
+import { PagedList } from '../PagedList';
+
+export interface BorrowListQuery {
+  page: number;
+  pageSize: number;
+}
 
 export interface BorrowReportItem {
   id: string;
@@ -39,7 +45,13 @@ export interface IBorrowRepository {
   create(record: BorrowRecord): Promise<BorrowRecord>;
   findActiveByBookId(bookId: string): Promise<BorrowRecord | undefined>;
   markReturned(bookId: string, returnDate: Date): Promise<boolean>;
-  findAllWithDetails(): Promise<BorrowReportItem[]>;
-  findActiveBorrowsForMember(memberId: string): Promise<MemberActiveBorrow[]>;
-  findBorrowHistoryForMember(memberId: string): Promise<MemberBorrowHistoryEntry[]>;
+  findAllWithDetails(query: BorrowListQuery): Promise<PagedList<BorrowReportItem>>;
+  findActiveBorrowsForMember(
+    memberId: string,
+    query: BorrowListQuery
+  ): Promise<PagedList<MemberActiveBorrow>>;
+  findBorrowHistoryForMember(
+    memberId: string,
+    query: BorrowListQuery
+  ): Promise<PagedList<MemberBorrowHistoryEntry>>;
 }

@@ -1,11 +1,14 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ColumnDef, PaginationState } from '@tanstack/react-table'
 import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react'
 import { api } from '#/lib/api'
 import { getRole, getSession } from '#/lib/auth'
 import { queryKeys } from '#/lib/queryKeys'
 import type { Member, MemberBorrowHistoryEntry } from '#/lib/types'
+import type { PaginatedResponse } from '#/types/api'
+import { DataTable } from '#/components/DataTable'
 import { Modal } from '#/components/Modal'
 import { ConfirmDialog } from '#/components/ConfirmDialog'
 import { MemberForm, type MemberFormValues } from '#/components/MemberForm'
@@ -23,22 +26,54 @@ export const Route = createFileRoute('/_authenticated/members')({
 function MembersPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<Member | null>(null)
   const [deleting, setDeleting] = useState<Member | null>(null)
   const [historyMember, setHistoryMember] = useState<Member | null>(null)
+  const [historyPagination, setHistoryPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
+  }, [search])
+
+  useEffect(() => {
+    setHistoryPagination({ pageIndex: 0, pageSize: 10 })
+  }, [historyMember?.id])
 
   const membersQuery = useQuery({
-    queryKey: queryKeys.members(search),
-    queryFn: () => api.get<Member[]>(`/members?search=${encodeURIComponent(search)}`),
+    queryKey: queryKeys.members(search, pagination.pageIndex, pagination.pageSize),
+    queryFn: () => {
+      const p = new URLSearchParams()
+      p.set('page', String(pagination.pageIndex + 1))
+      p.set('page_size', String(pagination.pageSize))
+      if (search) p.set('search', search)
+      return api.get<PaginatedResponse<Member>>(`/members?${p.toString()}`)
+    },
   })
 
   const historyQuery = useQuery({
     queryKey: historyMember
-      ? queryKeys.memberBorrows(historyMember.id)
+      ? queryKeys.memberBorrows(
+          historyMember.id,
+          historyPagination.pageIndex,
+          historyPagination.pageSize
+        )
       : ['memberBorrows', 'idle'],
-    queryFn: () =>
-      api.get<MemberBorrowHistoryEntry[]>(`/members/${historyMember!.id}/borrows`),
+    queryFn: () => {
+      const p = new URLSearchParams()
+      p.set('page', String(historyPagination.pageIndex + 1))
+      p.set('page_size', String(historyPagination.pageSize))
+      return api.get<PaginatedResponse<MemberBorrowHistoryEntry>>(
+        `/members/${historyMember!.id}/borrows?${p.toString()}`
+      )
+    },
     enabled: historyMember !== null,
   })
 
@@ -75,7 +110,140 @@ function MembersPage() {
     },
   })
 
-  const members = membersQuery.data ?? []
+  const memberList = membersQuery.data
+  const memberRows = memberList?.items ?? []
+  const memberTotal = memberList?.total ?? 0
+
+  const historyList = historyQuery.data
+  const historyRows = historyList?.items ?? []
+  const historyTotal = historyList?.total ?? 0
+
+  const memberColumns = useMemo<ColumnDef<Member>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Name',
+        cell: ({ getValue }) => (
+          <span className="font-medium text-gray-900">{getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: 'email',
+        header: 'Email',
+        cell: ({ getValue }) => <span className="text-gray-600">{getValue<string>()}</span>,
+      },
+      {
+        accessorKey: 'member_type',
+        header: 'Type',
+        cell: ({ getValue }) => (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 capitalize">
+            {getValue<string>()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'created_at',
+        header: 'Joined',
+        cell: ({ getValue }) => (
+          <span className="text-xs text-gray-500">
+            {new Date(getValue<string>()).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: () => null,
+        cell: ({ row }) => (
+          <div className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setEditing(row.original)}
+              className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50 mr-1"
+              title="Edit"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleting(row.original)}
+              className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
+              title="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    []
+  )
+
+  const historyColumns = useMemo<ColumnDef<MemberBorrowHistoryEntry>[]>(
+    () => [
+      {
+        id: 'book',
+        header: 'Book',
+        cell: ({ row }) => (
+          <>
+            <div className="font-medium text-gray-900">{row.original.book_title}</div>
+            <div className="text-xs text-gray-500">{row.original.book_author}</div>
+          </>
+        ),
+      },
+      {
+        accessorKey: 'book_isbn',
+        header: 'ISBN',
+        cell: ({ getValue }) => (
+          <span className="text-gray-500 font-mono text-xs">{getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: 'borrow_date',
+        header: 'Borrowed',
+        cell: ({ getValue }) => (
+          <span className="text-gray-600 whitespace-nowrap">
+            {new Date(getValue<string>()).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'due_date',
+        header: 'Due',
+        cell: ({ getValue }) => (
+          <span className="text-gray-600 whitespace-nowrap">
+            {new Date(getValue<string>()).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'return_date',
+        header: 'Returned',
+        cell: ({ getValue }) => {
+          const v = getValue<string | null>()
+          return (
+            <span className="text-gray-600 whitespace-nowrap">
+              {v ? new Date(v).toLocaleDateString() : '—'}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) =>
+          row.original.return_date === null ? (
+            <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
+              Active
+            </span>
+          ) : (
+            <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+              Returned
+            </span>
+          ),
+      },
+    ],
+    []
+  )
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -83,9 +251,10 @@ function MembersPage() {
         <div className="flex items-center gap-2">
           <Users className="text-indigo-600" size={22} />
           <h1 className="text-2xl font-bold text-gray-900">Members</h1>
-          <span className="text-sm text-gray-400 ml-1">({members.length})</span>
+          <span className="text-sm text-gray-400 ml-1">({memberTotal})</span>
         </div>
         <button
+          type="button"
           onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
         >
@@ -113,72 +282,18 @@ function MembersPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-            <tr>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Email</th>
-              <th className="px-4 py-3 text-left">Type</th>
-              <th className="px-4 py-3 text-left">Joined</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {membersQuery.isPending ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                  Loading…
-                </td>
-              </tr>
-            ) : members.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                  No members match your search
-                </td>
-              </tr>
-            ) : (
-              members.map((m) => (
-                <tr
-                  key={m.id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => setHistoryMember(m)}
-                >
-                  <td className="px-4 py-3 font-medium text-gray-900">{m.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{m.email}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 capitalize">
-                      {m.member_type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {new Date(m.created_at).toLocaleDateString()}
-                  </td>
-                  <td
-                    className="px-4 py-3 text-right whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => setEditing(m)}
-                      className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50 mr-1"
-                      title="Edit"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => setDeleting(m)}
-                      className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<Member>
+        data={memberRows}
+        columns={memberColumns}
+        getRowId={(m) => m.id}
+        isPending={membersQuery.isPending}
+        emptyMessage="No members match your search"
+        onRowClick={(m) => setHistoryMember(m)}
+        resetPageKey={search}
+        rowCount={memberTotal}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+      />
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="New member">
         <MemberForm
@@ -222,73 +337,26 @@ function MembersPage() {
       >
         {historyMember && (
           <>
-            {historyQuery.isPending && (
-              <div className="text-gray-400 text-sm py-10 text-center">Loading…</div>
-            )}
             {historyQuery.error && (
-              <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+              <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-2">
                 {historyQuery.error.message}
               </div>
             )}
-            {!historyQuery.isPending && !historyQuery.error && (
-              <div className="rounded-lg border border-gray-200 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Book</th>
-                      <th className="px-3 py-2 text-left">ISBN</th>
-                      <th className="px-3 py-2 text-left">Borrowed</th>
-                      <th className="px-3 py-2 text-left">Due</th>
-                      <th className="px-3 py-2 text-left">Returned</th>
-                      <th className="px-3 py-2 text-left">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {(historyQuery.data ?? []).length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-3 py-8 text-center text-gray-400">
-                          No borrows yet
-                        </td>
-                      </tr>
-                    ) : (
-                      (historyQuery.data ?? []).map((row) => (
-                        <tr key={row.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2">
-                            <div className="font-medium text-gray-900">{row.book_title}</div>
-                            <div className="text-xs text-gray-500">{row.book_author}</div>
-                          </td>
-                          <td className="px-3 py-2 text-gray-500 font-mono text-xs">
-                            {row.book_isbn}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                            {new Date(row.borrow_date).toLocaleDateString()}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                            {new Date(row.due_date).toLocaleDateString()}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                            {row.return_date
-                              ? new Date(row.return_date).toLocaleDateString()
-                              : '—'}
-                          </td>
-                          <td className="px-3 py-2">
-                            {row.return_date === null ? (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
-                                Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                                Returned
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<MemberBorrowHistoryEntry>
+              embedded
+              data={historyRows}
+              columns={historyColumns}
+              getRowId={(r) => r.id}
+              isPending={historyQuery.isPending}
+              emptyMessage="No borrows yet"
+              resetPageKey={historyMember.id}
+              density="compact"
+              maxBodyHeight="min(45vh, 360px)"
+              estimatedRowHeight={56}
+              rowCount={historyTotal}
+              pagination={historyPagination}
+              onPaginationChange={setHistoryPagination}
+            />
           </>
         )}
       </Modal>

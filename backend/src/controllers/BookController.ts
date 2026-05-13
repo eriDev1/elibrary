@@ -3,6 +3,7 @@ import { CreateBookUseCase } from '../usecases/CreateBookUseCase';
 import { GetAllBooksUseCase } from '../usecases/GetAllBooksUseCase';
 import { UpdateBookUseCase } from '../usecases/UpdateBookUseCase';
 import { DeleteBookUseCase } from '../usecases/DeleteBookUseCase';
+import { parseBookListQuery } from '../util/parsePagedQuery';
 
 interface BookBody {
   title: string;
@@ -21,13 +22,22 @@ export class BookController {
   async create(request: FastifyRequest, reply: FastifyReply) {
     const body = request.body as BookBody;
     const book = await this.createBookUseCase.execute(body);
-    reply.code(201).send(book);
+    reply.code(201).send(book.toJSON());
   }
 
   async getAll(request: FastifyRequest, reply: FastifyReply) {
-    const query = request.query as { search?: string };
-    const books = await this.getAllBooksUseCase.execute({ search: query.search });
-    reply.send(books);
+    const q = request.query as Record<string, string | string[] | undefined>;
+    const { page, pageSize, search, availableOnly } = parseBookListQuery(q);
+    const result = await this.getAllBooksUseCase.execute({
+      page,
+      pageSize,
+      search,
+      availableOnly,
+    });
+    reply.send({
+      items: result.items.map((b) => b.toJSON()),
+      total: result.total,
+    });
   }
 
   async update(request: FastifyRequest, reply: FastifyReply) {
@@ -38,7 +48,7 @@ export class BookController {
       reply.code(404).send({ error: 'Book not found' });
       return;
     }
-    reply.send(book);
+    reply.send(book.toJSON());
   }
 
   async delete(request: FastifyRequest, reply: FastifyReply) {

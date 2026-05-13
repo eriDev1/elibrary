@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SupabaseBaseRepository } from './SupabaseBaseRepository';
+import { BaseRepository } from './BaseRepository';
 import { IMemberRepository, MemberFilter } from '../../domain/interfaces/IMemberRepository';
+import { PagedList } from '../../domain/PagedList';
 import { Member, MemberType } from '../../domain/entities/Member';
 
 interface MemberRow {
@@ -23,10 +24,7 @@ function toMember(row: MemberRow): Member {
   );
 }
 
-export class SupabaseMemberRepository
-  extends SupabaseBaseRepository<Member>
-  implements IMemberRepository
-{
+export class MemberRepository extends BaseRepository<Member> implements IMemberRepository {
   constructor(supabase: SupabaseClient) {
     super(supabase, 'members');
   }
@@ -58,10 +56,15 @@ export class SupabaseMemberRepository
     return toMember(data as MemberRow);
   }
 
-  async findAll(filter: MemberFilter = {}): Promise<Member[]> {
+  async findAll(filter: MemberFilter): Promise<PagedList<Member>> {
+    const page = filter.page;
+    const pageSize = filter.pageSize;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
     let query = this.supabase
       .from(this.tableName)
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     if (filter.search && filter.search.trim().length > 0) {
@@ -69,9 +72,11 @@ export class SupabaseMemberRepository
       query = query.or(`name.ilike.${term},email.ilike.${term}`);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query.range(from, to);
     if (error) throw new Error(error.message);
-    return (data as MemberRow[]).map(toMember);
+    const items = (data as MemberRow[]).map(toMember);
+    const total = count ?? items.length;
+    return { items, total };
   }
 
   async findById(id: string): Promise<Member | undefined> {

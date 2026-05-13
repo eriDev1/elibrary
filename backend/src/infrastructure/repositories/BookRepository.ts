@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SupabaseBaseRepository } from './SupabaseBaseRepository';
+import { BaseRepository } from './BaseRepository';
 import { BookFilter, IBookRepository } from '../../domain/interfaces/IBookRepository';
+import { PagedList } from '../../domain/PagedList';
 import { Book } from '../../domain/entities/Book';
 
 interface BookRow {
@@ -25,10 +26,7 @@ function toBook(row: BookRow): Book {
   );
 }
 
-export class SupabaseBookRepository
-  extends SupabaseBaseRepository<Book>
-  implements IBookRepository
-{
+export class BookRepository extends BaseRepository<Book> implements IBookRepository {
   constructor(supabase: SupabaseClient) {
     super(supabase, 'books');
   }
@@ -56,10 +54,15 @@ export class SupabaseBookRepository
     return toBook(data as BookRow);
   }
 
-  async findAll(filter: BookFilter = {}): Promise<Book[]> {
+  async findAll(filter: BookFilter): Promise<PagedList<Book>> {
+    const page = filter.page;
+    const pageSize = filter.pageSize;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
     let query = this.supabase
       .from(this.tableName)
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     if (filter.search && filter.search.trim().length > 0) {
@@ -67,17 +70,23 @@ export class SupabaseBookRepository
       query = query.or(`title.ilike.${term},author.ilike.${term},isbn.ilike.${term}`);
     }
 
-    const { data, error } = await query;
+    if (filter.availableOnly) {
+      query = query.eq('is_available', true);
+    }
+
+    const { data, error, count } = await query.range(from, to);
     if (error) throw new Error(error.message);
-    return (data as BookRow[]).map(toBook);
+    const items = (data as BookRow[]).map(toBook);
+    const total = count ?? items.length;
+    return { items, total };
   }
 
   findById(id: string): Promise<Book | undefined>;
   findById(id: string, title: string): Promise<Book | undefined>;
   async findById(id: string, title?: string): Promise<Book | undefined> {
-    let query = this.supabase.from(this.tableName).select('*').eq('id', id);
-    if (title) query = query.eq('title', title);
-    const { data, error } = await query.maybeSingle();
+    let q = this.supabase.from(this.tableName).select('*').eq('id', id);
+    if (title) q = q.eq('title', title);
+    const { data, error } = await q.maybeSingle();
     if (error) throw new Error(error.message);
     return data ? toBook(data as BookRow) : undefined;
   }

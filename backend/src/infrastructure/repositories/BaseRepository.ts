@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
-export abstract class SupabaseBaseRepository<T> {
+export abstract class BaseRepository<T> {
   constructor(
     protected readonly supabase: SupabaseClient,
     protected readonly tableName: string

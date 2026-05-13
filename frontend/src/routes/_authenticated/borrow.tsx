@@ -1,12 +1,15 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import type { ColumnDef, PaginationState } from '@tanstack/react-table'
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 import { api } from '#/lib/api'
 import { getRole, getSession } from '#/lib/auth'
 import { useSessionQuery } from '#/lib/sessionQuery'
 import { queryKeys } from '#/lib/queryKeys'
 import type { Book, BorrowRecord, MemberActiveBorrow } from '#/lib/types'
+import type { PaginatedResponse } from '#/types/api'
+import { DataTable } from '#/components/DataTable'
 
 export const Route = createFileRoute('/_authenticated/borrow')({
   beforeLoad: async () => {
@@ -24,26 +27,54 @@ function BorrowPage() {
   const memberId = session?.user.id ?? null
 
   const [success, setSuccess] = useState<string | null>(null)
+  const [bookPagination, setBookPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+  const [loanPagination, setLoanPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
 
   const booksQuery = useQuery({
-    queryKey: queryKeys.books(''),
-    queryFn: () => api.get<Book[]>('/books'),
+    queryKey: [
+      'books',
+      'available',
+      bookPagination.pageIndex,
+      bookPagination.pageSize,
+    ] as const,
+    queryFn: () => {
+      const p = new URLSearchParams()
+      p.set('page', String(bookPagination.pageIndex + 1))
+      p.set('page_size', String(bookPagination.pageSize))
+      p.set('available_only', '1')
+      return api.get<PaginatedResponse<Book>>(`/books?${p.toString()}`)
+    },
+    enabled: memberId !== null,
   })
 
   const myBorrowsQuery = useQuery({
-    queryKey: memberId ? queryKeys.myBorrows(memberId) : ['myBorrows', 'pending'],
-    queryFn: () => api.get<MemberActiveBorrow[]>('/borrow/my'),
+    queryKey: memberId
+      ? queryKeys.myBorrows(memberId, loanPagination.pageIndex, loanPagination.pageSize)
+      : ['myBorrows', 'pending'],
+    queryFn: () => {
+      const p = new URLSearchParams()
+      p.set('page', String(loanPagination.pageIndex + 1))
+      p.set('page_size', String(loanPagination.pageSize))
+      return api.get<PaginatedResponse<MemberActiveBorrow>>(`/borrow/my?${p.toString()}`)
+    },
     enabled: memberId !== null,
   })
 
   function invalidateBorrowData() {
     queryClient.invalidateQueries({ queryKey: ['books'] })
-    if (memberId) queryClient.invalidateQueries({ queryKey: queryKeys.myBorrows(memberId) })
+    if (memberId) {
+      queryClient.invalidateQueries({ queryKey: ['myBorrows', memberId] })
+    }
   }
 
   const borrowMutation = useMutation({
-    mutationFn: (bookId: string) =>
-      api.post<BorrowRecord>('/borrow', { bookId, memberId }),
+    mutationFn: (bookId: string) => api.post<BorrowRecord>('/borrow', { bookId }),
     onSuccess: (record) => {
       invalidateBorrowData()
       setSuccess(
@@ -60,8 +91,119 @@ function BorrowPage() {
     },
   })
 
-  const books = booksQuery.data ?? []
-  const myLoans = myBorrowsQuery.data ?? []
+  const bookList = booksQuery.data
+  const availableRows = bookList?.items ?? []
+  const availableTotal = bookList?.total ?? 0
+
+  const loanList = myBorrowsQuery.data
+  const myLoans = loanList?.items ?? []
+  const loansTotal = loanList?.total ?? 0
+
+  const availableColumns = useMemo<ColumnDef<Book>[]>(() => {
+    const borrowingId =
+      borrowMutation.isPending && borrowMutation.variables
+        ? borrowMutation.variables
+        : null
+    return [
+      {
+        accessorKey: 'title',
+        header: 'Title',
+        cell: ({ getValue }) => (
+          <span className="font-medium text-gray-900">{getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: 'author',
+        header: 'Author',
+        cell: ({ getValue }) => <span className="text-gray-600">{getValue<string>()}</span>,
+      },
+      {
+        accessorKey: 'isbn',
+        header: 'ISBN',
+        cell: ({ getValue }) => (
+          <span className="text-gray-500 font-mono text-xs">{getValue<string>()}</span>
+        ),
+      },
+      {
+        id: 'borrow',
+        header: () => null,
+        cell: ({ row }) => (
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => {
+                setSuccess(null)
+                borrowMutation.mutate(row.original.id)
+              }}
+              disabled={borrowingId === row.original.id}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+            >
+              {borrowingId === row.original.id ? 'Borrowing…' : 'Borrow'}
+            </button>
+          </div>
+        ),
+      },
+    ]
+  }, [borrowMutation.isPending, borrowMutation.variables])
+
+  const loanColumns = useMemo<ColumnDef<MemberActiveBorrow>[]>(() => {
+    const returningId =
+      returnMutation.isPending && returnMutation.variables ? returnMutation.variables : null
+    return [
+      {
+        id: 'title',
+        header: 'Title',
+        cell: ({ row }) => (
+          <>
+            <div className="font-medium text-gray-900">{row.original.book_title}</div>
+            <div className="text-xs text-gray-500">{row.original.book_author}</div>
+          </>
+        ),
+      },
+      {
+        accessorKey: 'borrow_date',
+        header: 'Borrowed',
+        cell: ({ getValue }) => (
+          <span className="text-gray-600">
+            {new Date(getValue<string>()).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'due_date',
+        header: 'Return by',
+        cell: ({ getValue }) => (
+          <span className="text-gray-600 font-medium">
+            {new Date(getValue<string>()).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => <DueBadge dueDate={row.original.due_date} />,
+      },
+      {
+        id: 'return',
+        header: () => null,
+        cell: ({ row }) => (
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => {
+                setSuccess(null)
+                returnMutation.mutate(row.original.book_id)
+              }}
+              disabled={returningId === row.original.book_id}
+              className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+            >
+              {returningId === row.original.book_id ? 'Returning…' : 'Return'}
+            </button>
+          </div>
+        ),
+      },
+    ]
+  }, [returnMutation.isPending, returnMutation.variables])
 
   const error =
     booksQuery.error?.message ??
@@ -70,15 +212,13 @@ function BorrowPage() {
     returnMutation.error?.message ??
     null
 
-  if (booksQuery.isPending || myBorrowsQuery.isPending || !memberId) {
+  if (!memberId) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-400 text-sm">
         Loading…
       </div>
     )
   }
-
-  const available = books.filter((b) => b.is_available)
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
@@ -94,142 +234,44 @@ function BorrowPage() {
         <div className="text-sm text-green-700 bg-green-50 rounded-lg px-4 py-3">{success}</div>
       )}
 
-      <Section
-        icon={<ArrowDownToLine className="text-indigo-600" size={18} />}
-        title={`Available books (${available.length})`}
-        emptyMessage="No available books"
-        rows={available}
-        action={(book) => (
-          <button
-            onClick={() => {
-              setSuccess(null)
-              borrowMutation.mutate(book.id)
-            }}
-            disabled={borrowMutation.isPending && borrowMutation.variables === book.id}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
-          >
-            {borrowMutation.isPending && borrowMutation.variables === book.id
-              ? 'Borrowing…'
-              : 'Borrow'}
-          </button>
-        )}
-      />
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <ArrowDownToLine className="text-indigo-600" size={18} />
+          <h2 className="text-base font-semibold text-gray-800">
+            Available books ({availableTotal})
+          </h2>
+        </div>
+        <DataTable<Book>
+          data={availableRows}
+          columns={availableColumns}
+          getRowId={(b) => b.id}
+          isPending={booksQuery.isPending}
+          emptyMessage="No available books"
+          rowCount={availableTotal}
+          pagination={bookPagination}
+          onPaginationChange={setBookPagination}
+        />
+      </section>
 
       <section>
         <div className="flex items-center gap-2 mb-3">
           <ArrowUpFromLine className="text-amber-500" size={18} />
           <h2 className="text-base font-semibold text-gray-800">
-            My current loans ({myLoans.length})
+            My current loans ({loansTotal})
           </h2>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-3 text-left">Title</th>
-                <th className="px-4 py-3 text-left">Borrowed</th>
-                <th className="px-4 py-3 text-left">Return by</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {myLoans.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                    You have no active loans
-                  </td>
-                </tr>
-              ) : (
-                myLoans.map((loan) => (
-                  <tr key={loan.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{loan.book_title}</div>
-                      <div className="text-xs text-gray-500">{loan.book_author}</div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {new Date(loan.borrow_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 font-medium">
-                      {new Date(loan.due_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <DueBadge dueDate={loan.due_date} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => {
-                          setSuccess(null)
-                          returnMutation.mutate(loan.book_id)
-                        }}
-                        disabled={
-                          returnMutation.isPending &&
-                          returnMutation.variables === loan.book_id
-                        }
-                        className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
-                      >
-                        {returnMutation.isPending && returnMutation.variables === loan.book_id
-                          ? 'Returning…'
-                          : 'Return'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<MemberActiveBorrow>
+          data={myLoans}
+          columns={loanColumns}
+          getRowId={(l) => l.id}
+          isPending={myBorrowsQuery.isPending}
+          emptyMessage="You have no active loans"
+          rowCount={loansTotal}
+          pagination={loanPagination}
+          onPaginationChange={setLoanPagination}
+        />
       </section>
     </div>
-  )
-}
-
-interface SectionProps {
-  icon: React.ReactNode
-  title: string
-  emptyMessage: string
-  rows: Book[]
-  action: (book: Book) => React.ReactNode
-}
-
-function Section({ icon, title, emptyMessage, rows, action }: SectionProps) {
-  return (
-    <section>
-      <div className="flex items-center gap-2 mb-3">
-        {icon}
-        <h2 className="text-base font-semibold text-gray-800">{title}</h2>
-      </div>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-            <tr>
-              <th className="px-4 py-3 text-left">Title</th>
-              <th className="px-4 py-3 text-left">Author</th>
-              <th className="px-4 py-3 text-left">ISBN</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              rows.map((book) => (
-                <tr key={book.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{book.title}</td>
-                  <td className="px-4 py-3 text-gray-600">{book.author}</td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{book.isbn}</td>
-                  <td className="px-4 py-3 text-right">{action(book)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
   )
 }
 

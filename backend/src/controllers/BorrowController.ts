@@ -4,6 +4,7 @@ import { ReturnBookUseCase } from '../usecases/ReturnBookUseCase';
 import { GetAllBorrowsUseCase } from '../usecases/GetAllBorrowsUseCase';
 import { GetMyActiveBorrowsUseCase } from '../usecases/GetMyActiveBorrowsUseCase';
 import { GetMemberLoanPeriodUseCase } from '../usecases/GetMemberLoanPeriodUseCase';
+import { parsePagedQuery } from '../util/parsePagedQuery';
 
 export class BorrowController {
   constructor(
@@ -26,7 +27,7 @@ export class BorrowController {
       return;
     }
 
-    reply.code(201).send(record);
+    reply.code(201).send(record.toJSON());
   }
 
   async return(request: FastifyRequest, reply: FastifyReply) {
@@ -41,16 +42,22 @@ export class BorrowController {
     reply.send({ success: true });
   }
 
-  async report(_request: FastifyRequest, reply: FastifyReply) {
-    const items = await this.getAllBorrowsUseCase.execute();
-    reply.send(items);
+  async report(request: FastifyRequest, reply: FastifyReply) {
+    const q = request.query as Record<string, string | string[] | undefined>;
+    const { page, pageSize } = parsePagedQuery(q);
+    const result = await this.getAllBorrowsUseCase.execute({ page, pageSize });
+    reply.send({ items: result.items, total: result.total });
   }
 
   async myActive(request: FastifyRequest, reply: FastifyReply) {
-    const items = await this.getMyActiveBorrowsUseCase.execute({
+    const q = request.query as Record<string, string | string[] | undefined>;
+    const { page, pageSize } = parsePagedQuery(q);
+    const result = await this.getMyActiveBorrowsUseCase.execute({
       memberId: request.user.id,
+      page,
+      pageSize,
     });
-    reply.send(items);
+    reply.send({ items: result.items, total: result.total });
   }
 
   async memberLoanPeriod(request: FastifyRequest, reply: FastifyReply) {

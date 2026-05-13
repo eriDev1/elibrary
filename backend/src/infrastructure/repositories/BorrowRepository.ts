@@ -1,10 +1,12 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import {
+  BorrowListQuery,
   BorrowReportItem,
   IBorrowRepository,
   MemberActiveBorrow,
   MemberBorrowHistoryEntry,
 } from '../../domain/interfaces/IBorrowRepository';
+import { PagedList } from '../../domain/PagedList';
 import { BorrowRecord } from '../../domain/entities/BorrowRecord';
 
 interface BorrowRow {
@@ -62,7 +64,23 @@ function toBorrowRecord(row: BorrowRow): BorrowRecord {
   );
 }
 
-export class SupabaseBorrowRepository implements IBorrowRepository {
+function mapReportRow(row: BorrowReportRow): BorrowReportItem {
+  return {
+    id: row.id,
+    book_id: row.book_id,
+    book_title: row.books?.title ?? '(deleted)',
+    book_author: row.books?.author ?? '',
+    member_id: row.member_id,
+    member_name: row.members?.name ?? '(deleted)',
+    member_email: row.members?.email ?? '',
+    member_type: row.members?.member_type ?? '',
+    borrow_date: row.borrow_date,
+    due_date: row.due_date,
+    return_date: row.return_date,
+  };
+}
+
+export class BorrowRepository implements IBorrowRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
   async create(record: BorrowRecord): Promise<BorrowRecord> {
@@ -103,38 +121,43 @@ export class SupabaseBorrowRepository implements IBorrowRepository {
     return (data?.length ?? 0) > 0;
   }
 
-  async findAllWithDetails(): Promise<BorrowReportItem[]> {
-    const { data, error } = await this.supabase
+  async findAllWithDetails(query: BorrowListQuery): Promise<PagedList<BorrowReportItem>> {
+    const page = query.page;
+    const pageSize = query.pageSize;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await this.supabase
       .from('borrow_records')
-      .select('*, books(title, author), members(name, email, member_type)')
-      .order('borrow_date', { ascending: false });
+      .select('*, books(title, author), members(name, email, member_type)', { count: 'exact' })
+      .order('borrow_date', { ascending: false })
+      .range(from, to);
     if (error) throw new Error(error.message);
 
-    return (data as BorrowReportRow[]).map((row) => ({
-      id: row.id,
-      book_id: row.book_id,
-      book_title: row.books?.title ?? '(deleted)',
-      book_author: row.books?.author ?? '',
-      member_id: row.member_id,
-      member_name: row.members?.name ?? '(deleted)',
-      member_email: row.members?.email ?? '',
-      member_type: row.members?.member_type ?? '',
-      borrow_date: row.borrow_date,
-      due_date: row.due_date,
-      return_date: row.return_date,
-    }));
+    const items = (data as BorrowReportRow[]).map(mapReportRow);
+    const total = count ?? items.length;
+    return { items, total };
   }
 
-  async findActiveBorrowsForMember(memberId: string): Promise<MemberActiveBorrow[]> {
-    const { data, error } = await this.supabase
+  async findActiveBorrowsForMember(
+    memberId: string,
+    query: BorrowListQuery
+  ): Promise<PagedList<MemberActiveBorrow>> {
+    const page = query.page;
+    const pageSize = query.pageSize;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await this.supabase
       .from('borrow_records')
-      .select('id, book_id, borrow_date, due_date, books(title, author, isbn)')
+      .select('id, book_id, borrow_date, due_date, books(title, author, isbn)', { count: 'exact' })
       .eq('member_id', memberId)
       .is('return_date', null)
-      .order('due_date', { ascending: true });
+      .order('due_date', { ascending: true })
+      .range(from, to);
     if (error) throw new Error(error.message);
 
-    return (data as MemberBorrowRow[]).map((row) => {
+    const items = (data as MemberBorrowRow[]).map((row) => {
       const b = singleBook(row.books);
       return {
         id: row.id,
@@ -146,17 +169,30 @@ export class SupabaseBorrowRepository implements IBorrowRepository {
         due_date: row.due_date,
       };
     });
+    const total = count ?? items.length;
+    return { items, total };
   }
 
-  async findBorrowHistoryForMember(memberId: string): Promise<MemberBorrowHistoryEntry[]> {
-    const { data, error } = await this.supabase
+  async findBorrowHistoryForMember(
+    memberId: string,
+    query: BorrowListQuery
+  ): Promise<PagedList<MemberBorrowHistoryEntry>> {
+    const page = query.page;
+    const pageSize = query.pageSize;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await this.supabase
       .from('borrow_records')
-      .select('id, book_id, borrow_date, due_date, return_date, books(title, author, isbn)')
+      .select('id, book_id, borrow_date, due_date, return_date, books(title, author, isbn)', {
+        count: 'exact',
+      })
       .eq('member_id', memberId)
-      .order('borrow_date', { ascending: false });
+      .order('borrow_date', { ascending: false })
+      .range(from, to);
     if (error) throw new Error(error.message);
 
-    return (data as MemberBorrowHistoryRow[]).map((row) => {
+    const items = (data as MemberBorrowHistoryRow[]).map((row) => {
       const b = singleBook(row.books);
       return {
         id: row.id,
@@ -169,5 +205,7 @@ export class SupabaseBorrowRepository implements IBorrowRepository {
         return_date: row.return_date,
       };
     });
+    const total = count ?? items.length;
+    return { items, total };
   }
 }

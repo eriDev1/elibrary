@@ -1,8 +1,12 @@
 export const queryKeys = {
   session: ['session'] as const,
-  books: (search: string = '') => ['books', search] as const,
-  members: (search: string = '') => ['members', search] as const,
-  borrows: ['borrows'] as const,
-  myBorrows: (memberId: string) => ['myBorrows', memberId] as const,
-  memberBorrows: (memberId: string) => ['memberBorrows', memberId] as const,
+  books: (search: string, pageIndex: number, pageSize: number) =>
+    ['books', search, pageIndex, pageSize] as const,
+  members: (search: string, pageIndex: number, pageSize: number) =>
+    ['members', search, pageIndex, pageSize] as const,
+  borrows: (pageIndex: number, pageSize: number) => ['borrows', pageIndex, pageSize] as const,
+  myBorrows: (memberId: string, pageIndex: number, pageSize: number) =>
+    ['myBorrows', memberId, pageIndex, pageSize] as const,
+  memberBorrows: (memberId: string, pageIndex: number, pageSize: number) =>
+    ['memberBorrows', memberId, pageIndex, pageSize] as const,
 }
