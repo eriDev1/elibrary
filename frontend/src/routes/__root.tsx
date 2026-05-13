@@ -2,6 +2,7 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { Nav } from '#/components/Nav'
+import { QueryProvider } from '#/components/QueryProvider'
 
 import appCss from '../styles.css?url'
 
@@ -24,8 +25,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-gray-50 min-h-screen">
-        <Nav />
-        <main>{children}</main>
+        <QueryProvider>
+          <Nav />
+          <main>{children}</main>
+        </QueryProvider>
         <TanStackDevtools
           config={{ position: 'bottom-right' }}
           plugins={[{ name: 'Tanstack Router', render: <TanStackRouterDevtoolsPanel /> }]}

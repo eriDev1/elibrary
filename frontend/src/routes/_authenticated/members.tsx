@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '#/lib/api'
 import { getSession, getRole } from '#/lib/auth'
+import { queryKeys } from '#/lib/queryKeys'
 import { Users, Plus } from 'lucide-react'
 
 interface Member {
@@ -19,48 +21,41 @@ const MEMBER_TYPES = ['standard', 'student', 'premium'] as const
 
 function MembersPage() {
   const navigate = useNavigate()
-  const [members, setMembers] = useState<Member[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', memberType: 'standard' })
-  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     getSession().then((s) => {
       const r = getRole(s)
       if (r !== 'staff') navigate({ to: '/books' })
     })
-    fetchMembers()
   }, [navigate])
 
-  async function fetchMembers() {
-    try {
-      const data = await api.get<Member[]>('/members')
-      setMembers(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load members')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const membersQuery = useQuery({
+    queryKey: queryKeys.members,
+    queryFn: () => api.get<Member[]>('/members'),
+  })
+
+  const addMember = useMutation({
+    mutationFn: () => api.post<Member>('/members', form),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      setForm({ name: '', email: '', memberType: 'standard' })
+      setShowForm(false)
+    },
+  })
 
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    try {
-      await api.post('/members', form)
-      setForm({ name: '', email: '', memberType: 'standard' })
-      setShowForm(false)
-      await fetchMembers()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add member')
-    } finally {
-      setSubmitting(false)
-    }
+    addMember.mutate()
   }
 
-  if (loading) {
+  const members = membersQuery.data ?? []
+  const error =
+    membersQuery.error?.message ?? addMember.error?.message ?? null
+
+  if (membersQuery.isPending) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-400 text-sm">
         Loading members…
@@ -128,10 +123,10 @@ function MembersPage() {
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={addMember.isPending}
               className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              {submitting ? 'Saving…' : 'Save'}
+              {addMember.isPending ? 'Saving…' : 'Save'}
             </button>
             <button
               type="button"

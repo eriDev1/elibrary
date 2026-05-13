@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '#/lib/api'
 import { getSession, getRole } from '#/lib/auth'
+import { queryKeys } from '#/lib/queryKeys'
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 
 interface Book {
@@ -27,13 +29,9 @@ export const Route = createFileRoute('/_authenticated/borrow')({
 
 function BorrowPage() {
   const navigate = useNavigate()
-  const [books, setBooks] = useState<Book[]>([])
+  const queryClient = useQueryClient()
   const [memberId, setMemberId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [borrowing, setBorrowing] = useState<string | null>(null)
-  const [returning, setReturning] = useState<string | null>(null)
 
   useEffect(() => {
     getSession().then((s) => {
@@ -44,52 +42,39 @@ function BorrowPage() {
       }
       setMemberId(s!.user.id)
     })
-    fetchBooks()
   }, [navigate])
 
-  async function fetchBooks() {
-    try {
-      const data = await api.get<Book[]>('/books')
-      setBooks(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load books')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const booksQuery = useQuery({
+    queryKey: queryKeys.books,
+    queryFn: () => api.get<Book[]>('/books'),
+    enabled: memberId !== null,
+  })
 
-  async function handleBorrow(bookId: string) {
-    if (!memberId) return
-    setBorrowing(bookId)
-    setError(null)
-    setSuccess(null)
-    try {
-      const record = await api.post<BorrowRecord>('/borrow', { bookId, memberId })
+  const borrow = useMutation({
+    mutationFn: (bookId: string) =>
+      api.post<BorrowRecord>('/borrow', { bookId, memberId: memberId! }),
+    onSuccess: (record) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.books })
       setSuccess(`Borrowed successfully. Due: ${new Date(record.dueDate).toLocaleDateString()}`)
-      await fetchBooks()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to borrow book')
-    } finally {
-      setBorrowing(null)
-    }
-  }
+    },
+  })
 
-  async function handleReturn(bookId: string) {
-    setReturning(bookId)
-    setError(null)
-    setSuccess(null)
-    try {
-      await api.post('/return', { bookId })
+  const returnBook = useMutation({
+    mutationFn: (bookId: string) => api.post('/return', { bookId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.books })
       setSuccess('Book returned successfully.')
-      await fetchBooks()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to return book')
-    } finally {
-      setReturning(null)
-    }
-  }
+    },
+  })
 
-  if (loading) {
+  const books = booksQuery.data ?? []
+  const error =
+    booksQuery.error?.message ??
+    borrow.error?.message ??
+    returnBook.error?.message ??
+    null
+
+  if (!memberId || booksQuery.isPending) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-400 text-sm">
         Loading…
@@ -143,11 +128,16 @@ function BorrowPage() {
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{book.isbn}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleBorrow(book.id)}
-                        disabled={borrowing === book.id}
+                        onClick={() => {
+                          setSuccess(null)
+                          borrow.mutate(book.id)
+                        }}
+                        disabled={borrow.isPending && borrow.variables === book.id}
                         className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                       >
-                        {borrowing === book.id ? 'Borrowing…' : 'Borrow'}
+                        {borrow.isPending && borrow.variables === book.id
+                          ? 'Borrowing…'
+                          : 'Borrow'}
                       </button>
                     </td>
                   </tr>
@@ -190,11 +180,16 @@ function BorrowPage() {
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{book.isbn}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleReturn(book.id)}
-                        disabled={returning === book.id}
+                        onClick={() => {
+                          setSuccess(null)
+                          returnBook.mutate(book.id)
+                        }}
+                        disabled={returnBook.isPending && returnBook.variables === book.id}
                         className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                       >
-                        {returning === book.id ? 'Returning…' : 'Return'}
+                        {returnBook.isPending && returnBook.variables === book.id
+                          ? 'Returning…'
+                          : 'Return'}
                       </button>
                     </td>
                   </tr>

@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { api } from '#/lib/api'
 import { getSession, getRole } from '#/lib/auth'
+import { queryKeys } from '#/lib/queryKeys'
 import { BookOpen, Plus } from 'lucide-react'
 
 interface Book {
@@ -17,46 +19,44 @@ export const Route = createFileRoute('/_authenticated/books')({
 })
 
 function BooksPage() {
-  const [books, setBooks] = useState<Book[]>([])
-  const [role, setRole] = useState<'staff' | 'member' | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', author: '', isbn: '' })
-  const [submitting, setSubmitting] = useState(false)
 
-  async function fetchBooks() {
-    try {
-      const data = await api.get<Book[]>('/books')
-      setBooks(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load books')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const booksQuery = useQuery({
+    queryKey: queryKeys.books,
+    queryFn: () => api.get<Book[]>('/books'),
+  })
 
-  useEffect(() => {
-    getSession().then((s) => setRole(getRole(s)))
-    fetchBooks()
-  }, [])
+  const roleQuery = useQuery({
+    queryKey: ['auth', 'role'] as const,
+    queryFn: async () => {
+      const s = await getSession()
+      return getRole(s)
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const addBook = useMutation({
+    mutationFn: () => api.post<Book>('/books', form),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.books })
+      setForm({ title: '', author: '', isbn: '' })
+      setShowForm(false)
+    },
+  })
 
   async function handleAddBook(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    try {
-      await api.post('/books', form)
-      setForm({ title: '', author: '', isbn: '' })
-      setShowForm(false)
-      await fetchBooks()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add book')
-    } finally {
-      setSubmitting(false)
-    }
+    addBook.mutate()
   }
 
-  if (loading) {
+  const books = booksQuery.data ?? []
+  const role = roleQuery.data ?? null
+  const error =
+    booksQuery.error?.message ?? addBook.error?.message ?? null
+
+  if (booksQuery.isPending) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-400 text-sm">
         Loading books…
@@ -121,10 +121,10 @@ function BooksPage() {
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={addBook.isPending}
               className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              {submitting ? 'Saving…' : 'Save'}
+              {addBook.isPending ? 'Saving…' : 'Save'}
             </button>
             <button
               type="button"
