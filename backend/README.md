@@ -18,6 +18,8 @@ In your Supabase dashboard go to **Authentication → Users → Add user**. Fill
 
 Copy and paste into the `app_metadata` field (not `user_metadata`).
 
+**Or use SQL:** create the user in the dashboard first (same email/password), then run [`supabase/promote_staff.sql`](supabase/promote_staff.sql) in the SQL Editor after changing the email in the `where` clause. That sets `raw_app_meta_data.role` to `staff`, which is what the API reads as `app_metadata.role` on the JWT.
+
 ### 3. Configure environment variables
 
 ```bash

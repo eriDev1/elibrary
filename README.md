@@ -19,9 +19,10 @@ Create a free project at [supabase.com](https://supabase.com), run `backend/supa
 cp backend/.env.example backend/.env
 # Fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
 
-# Frontend
+# Frontend (required — Vite does not read backend/.env)
 cp frontend/.env.example frontend/.env
-# Fill in VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_API_URL=http://localhost:4000
+# Use the same values as backend: SUPABASE_URL → VITE_SUPABASE_URL, SUPABASE_ANON_KEY → VITE_SUPABASE_ANON_KEY
+# VITE_API_URL=http://localhost:4000
 ```
 
 ### 3. Run backend (port 4000)
