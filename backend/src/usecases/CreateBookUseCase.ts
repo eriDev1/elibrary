@@ -8,17 +8,16 @@ export interface CreateBookInput {
   isbn: string;
 }
 
-export class CreateBookUseCase implements IUseCase<CreateBookInput, Book> {
+export class CreateBookUseCase implements IUseCase<CreateBookInput, Promise<Book>> {
   constructor(private bookRepository: IBookRepository) {}
 
-  execute(input: CreateBookInput): Book {
+  execute(input: CreateBookInput): Promise<Book> {
     const book = new Book(
-      `B-${Date.now()}`,
+      crypto.randomUUID(),
       input.title,
       input.author,
       input.isbn
     );
-
     return this.bookRepository.create(book);
   }
 }

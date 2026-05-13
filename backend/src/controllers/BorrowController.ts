@@ -10,7 +10,7 @@ export class BorrowController {
 
   async borrow(request: FastifyRequest, reply: FastifyReply) {
     const body = request.body as { bookId: string; memberId: string };
-    const record = this.borrowBookUseCase.execute(body);
+    const record = await this.borrowBookUseCase.execute(body);
 
     if (!record) {
       reply.code(400).send({ error: 'Cannot borrow book' });
@@ -22,7 +22,7 @@ export class BorrowController {
 
   async return(request: FastifyRequest, reply: FastifyReply) {
     const body = request.body as { bookId: string };
-    const success = this.returnBookUseCase.execute(body);
+    const success = await this.returnBookUseCase.execute(body);
 
     if (!success) {
       reply.code(400).send({ error: 'Cannot return book' });

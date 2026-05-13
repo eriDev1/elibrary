@@ -10,12 +10,12 @@ export class BookController {
 
   async create(request: FastifyRequest, reply: FastifyReply) {
     const body = request.body as { title: string; author: string; isbn: string };
-    const book = this.createBookUseCase.execute(body);
+    const book = await this.createBookUseCase.execute(body);
     reply.code(201).send(book);
   }
 
-  async getAll(request: FastifyRequest, reply: FastifyReply) {
-    const books = this.getAllBooksUseCase.execute();
+  async getAll(_request: FastifyRequest, reply: FastifyReply) {
+    const books = await this.getAllBooksUseCase.execute();
     reply.send(books);
   }
 }

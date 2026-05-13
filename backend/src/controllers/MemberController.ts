@@ -10,12 +10,12 @@ export class MemberController {
 
   async create(request: FastifyRequest, reply: FastifyReply) {
     const body = request.body as { name: string; email: string; memberType: string };
-    const member = this.createMemberUseCase.execute(body);
+    const member = await this.createMemberUseCase.execute(body);
     reply.code(201).send(member);
   }
 
-  async getAll(request: FastifyRequest, reply: FastifyReply) {
-    const members = this.getAllMembersUseCase.execute();
+  async getAll(_request: FastifyRequest, reply: FastifyReply) {
+    const members = await this.getAllMembersUseCase.execute();
     reply.send(members);
   }
 }

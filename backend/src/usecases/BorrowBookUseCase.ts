@@ -1,6 +1,7 @@
 import { IUseCase } from '../domain/interfaces/IUseCase';
 import { IBookRepository } from '../domain/interfaces/IBookRepository';
 import { IMemberRepository } from '../domain/interfaces/IMemberRepository';
+import { IBorrowRepository } from '../domain/interfaces/IBorrowRepository';
 import { IBorrowingStrategy } from '../domain/interfaces/IBorrowingStrategy';
 import { BorrowRecord } from '../domain/entities/BorrowRecord';
 
@@ -9,18 +10,17 @@ export interface BorrowBookInput {
   memberId: string;
 }
 
-export class BorrowBookUseCase implements IUseCase<BorrowBookInput, BorrowRecord | null> {
-  private records: BorrowRecord[] = [];
-
+export class BorrowBookUseCase implements IUseCase<BorrowBookInput, Promise<BorrowRecord | null>> {
   constructor(
     private bookRepository: IBookRepository,
     private memberRepository: IMemberRepository,
+    private borrowRepository: IBorrowRepository,
     private borrowingStrategy: IBorrowingStrategy
   ) {}
 
-  execute(input: BorrowBookInput): BorrowRecord | null {
-    const book = this.bookRepository.findById(input.bookId);
-    const member = this.memberRepository.findById(input.memberId);
+  async execute(input: BorrowBookInput): Promise<BorrowRecord | null> {
+    const book = await this.bookRepository.findById(input.bookId);
+    const member = await this.memberRepository.findById(input.memberId);
 
     if (!book || !member) {
       return null;
@@ -31,21 +31,20 @@ export class BorrowBookUseCase implements IUseCase<BorrowBookInput, BorrowRecord
     }
 
     book.isAvailable = false;
-    this.bookRepository.update(book);
+    await this.bookRepository.update(book);
 
     const borrowDate = new Date();
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + this.borrowingStrategy.getBorrowDuration());
 
     const record = new BorrowRecord(
-      `BR-${Date.now()}`,
+      crypto.randomUUID(),
       input.bookId,
       input.memberId,
       borrowDate,
       dueDate
     );
 
-    this.records.push(record);
-    return record;
+    return this.borrowRepository.create(record);
   }
 }
